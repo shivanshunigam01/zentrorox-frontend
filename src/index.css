@@ -1,0 +1,235 @@
+@import "tailwindcss";
+
+@theme {
+  --color-brand-yellow: #ffc400;
+  --color-brand-yellow-hover: #e6b000;
+  --color-brand-charcoal: #171717;
+  --color-brand-charcoal-light: #2a2a2a;
+  --color-brand-grey: #f6f7f9;
+  --color-brand-text: #202124;
+  --color-brand-muted: #6b7280;
+  --color-brand-border: #e5e7eb;
+  --color-brand-success: #16a34a;
+  --color-brand-warning: #f59e0b;
+  --color-brand-danger: #dc2626;
+  --color-brand-info: #2563eb;
+
+  --font-sans: "Poppins", ui-sans-serif, system-ui, sans-serif;
+  --radius-card: 12px;
+  --shadow-card: 0 1px 3px 0 rgb(0 0 0 / 0.06), 0 1px 2px -1px rgb(0 0 0 / 0.06);
+  --shadow-card-hover: 0 4px 12px 0 rgb(0 0 0 / 0.08);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  margin: 0;
+  font-family: var(--font-sans);
+  color: var(--color-brand-text);
+  background: #ffffff;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+#root {
+  min-height: 100vh;
+}
+
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #d1d5db;
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #9ca3af;
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-8px); }
+}
+
+@keyframes pulse-soft {
+  0%, 100% { opacity: 0.6; transform: scale(1); }
+  50% { opacity: 1; transform: scale(1.05); }
+}
+
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+@keyframes slide-up {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes spin-slow {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+@keyframes wiggle {
+  0%, 100% { transform: rotate(-3deg); }
+  50% { transform: rotate(3deg); }
+}
+
+.animate-float {
+  animation: float 4s ease-in-out infinite;
+}
+
+.animate-pulse-soft {
+  animation: pulse-soft 3s ease-in-out infinite;
+}
+
+.animate-slide-up {
+  animation: slide-up 0.6s ease-out forwards;
+}
+
+.animate-spin-slow {
+  animation: spin-slow 8s linear infinite;
+}
+
+.animate-wiggle {
+  animation: wiggle 2s ease-in-out infinite;
+}
+
+.gradient-text {
+  background: linear-gradient(135deg, #171717 0%, #ffc400 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.hero-pattern {
+  background-image:
+    radial-gradient(circle at 20% 50%, rgb(255 196 0 / 0.08) 0%, transparent 50%),
+    radial-gradient(circle at 80% 20%, rgb(255 196 0 / 0.06) 0%, transparent 40%),
+    radial-gradient(circle at 60% 80%, rgb(23 23 23 / 0.03) 0%, transparent 40%);
+}
+
+.glass-card {
+  background: rgb(255 255 255 / 0.85);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgb(255 255 255 / 0.5);
+}
+
+.image-overlay-gradient {
+  background: linear-gradient(to top, rgb(23 23 23 / 0.85) 0%, rgb(23 23 23 / 0.4) 50%, transparent 100%);
+}
+
+.stagger-1 { animation-delay: 0.1s; }
+.stagger-2 { animation-delay: 0.2s; }
+.stagger-3 { animation-delay: 0.3s; }
+.stagger-4 { animation-delay: 0.4s; }
+
+.card-shine {
+  position: relative;
+  overflow: hidden;
+}
+
+.card-shine::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 50%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgb(255 255 255 / 0.15), transparent);
+  transition: left 0.5s ease;
+}
+
+.card-shine:hover::after {
+  left: 150%;
+}
+
+/* Print / PDF document styles — production A4 output */
+@media print {
+  @page {
+    margin: 10mm 12mm;
+    size: A4 portrait;
+  }
+
+  html, body {
+    background: white !important;
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+
+  .app-shell > aside,
+  .app-shell .topbar,
+  .page-banner,
+  .no-print,
+  nav {
+    display: none !important;
+  }
+
+  .print-host-card {
+    border: none !important;
+    box-shadow: none !important;
+    background: transparent !important;
+  }
+
+  .print-host-card .p-5 {
+    padding: 0 !important;
+  }
+
+  .app-shell > div {
+    padding-left: 0 !important;
+  }
+
+  .app-shell main {
+    padding: 0 !important;
+  }
+
+  .printable-document {
+    box-shadow: none !important;
+    max-width: none !important;
+    margin: 0 !important;
+  }
+
+  .document-page {
+    border: none !important;
+    border-radius: 0 !important;
+    padding: 0 !important;
+    max-width: none !important;
+    box-shadow: none !important;
+  }
+
+  .document-header img {
+    max-height: 64px;
+  }
+
+  table {
+    page-break-inside: auto;
+  }
+
+  tr {
+    page-break-inside: avoid;
+    page-break-after: auto;
+  }
+
+  .document-footer {
+    page-break-inside: avoid;
+  }
+
+  .break-inside-avoid {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+}

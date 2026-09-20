@@ -1,0 +1,281 @@
+import { useEffect, useRef, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { Calendar, Plus, Car, User, Play, Printer, X } from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { PageBanner } from '@/components/ui/page-banner'
+import { Badge } from '@/components/ui/badge'
+import { MasterSelect } from '@/components/ui/master-select'
+import { PrintableBookingSlip } from '@/components/documents/printable-booking-slip'
+import { bookingsApi, customersApi, vehiclesApi, type BookingItem, type BookingDetail, type CustomerItem, type VehicleItem } from '@/lib/api'
+import { authStorage } from '@/lib/auth-storage'
+
+export function BookingsPage() {
+  const navigate = useNavigate()
+  const [bookings, setBookings] = useState<BookingItem[]>([])
+  const [customers, setCustomers] = useState<CustomerItem[]>([])
+  const [vehicles, setVehicles] = useState<VehicleItem[]>([])
+  const [loading, setLoading] = useState(true)
+  const [showForm, setShowForm] = useState(false)
+  const [saving, setSaving] = useState(false)
+  const [startingVisit, setStartingVisit] = useState<string | null>(null)
+  const [printBooking, setPrintBooking] = useState<BookingDetail | null>(null)
+  const printRef = useRef<HTMLDivElement>(null)
+  const [loadingPrint, setLoadingPrint] = useState<string | null>(null)
+  const [form, setForm] = useState({
+    customerId: '',
+    vehicleId: '',
+    serviceType: '',
+    bookingSource: '',
+    preferredSlot: '',
+    customerComplaint: '',
+  })
+
+  const token = authStorage.getToken()
+  const branchId = authStorage.getBranchId() ?? undefined
+
+  const load = async () => {
+    if (!token) return
+    setLoading(true)
+    try {
+      const [b, c] = await Promise.all([
+        bookingsApi.list(token, branchId),
+        customersApi.list(token),
+      ])
+      setBookings(b.items)
+      setCustomers(c.items)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => { load() }, [])
+
+  useEffect(() => {
+    if (!token || !form.customerId) {
+      setVehicles([])
+      return
+    }
+    vehiclesApi.list(token, { customerId: form.customerId }).then((r) => setVehicles(r.items))
+  }, [form.customerId, token])
+
+  const openPrintSlip = async (bookingId: string) => {
+    if (!token) return
+    setLoadingPrint(bookingId)
+    try {
+      const detail = await bookingsApi.get(token, bookingId, branchId)
+      setPrintBooking(detail)
+      requestAnimationFrame(() => printRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }))
+    } finally {
+      setLoadingPrint(null)
+    }
+  }
+
+  const handleStartVisit = async (bookingId: string) => {
+    if (!token || !branchId) return
+    setStartingVisit(bookingId)
+    try {
+      const visit = await bookingsApi.createVisitFromBooking(token, bookingId, branchId)
+      const currentStage = visit.stages.find((s) => s.status === 'current')
+      const path = currentStage?.path ?? 'gate-in'
+      navigate(`/app/service-visits/${visit.id}/${path}`)
+      await load()
+    } finally {
+      setStartingVisit(null)
+    }
+  }
+
+  const handleCreate = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!token || !branchId) return
+    setSaving(true)
+    try {
+      const created = await bookingsApi.create(token, {
+        branchId,
+        customerId: form.customerId,
+        vehicleId: form.vehicleId,
+        serviceType: form.serviceType,
+        source: form.bookingSource,
+        preferredSlot: form.preferredSlot,
+        customerComplaint: form.customerComplaint,
+      }, branchId)
+      setShowForm(false)
+      setForm({ customerId: '', vehicleId: '', serviceType: '', bookingSource: '', preferredSlot: '', customerComplaint: '' })
+      await load()
+      if (created.id) await openPrintSlip(created.id)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <div className="space-y-6">
+      <PageBanner
+        title="Bookings"
+        description="Create bookings and print professional service booking slips"
+        icon={Calendar}
+        gradient="from-emerald-600 to-teal-700"
+        emoji="📅"
+        actions={
+          <Button className="bg-white text-emerald-700 hover:bg-white/90 shadow-lg" onClick={() => setShowForm(!showForm)}>
+            <Plus className="h-4 w-4" /> New Booking
+          </Button>
+        }
+      />
+
+      {showForm && (
+        <Card>
+          <CardHeader><CardTitle>Create Booking</CardTitle></CardHeader>
+          <CardContent>
+            <form onSubmit={handleCreate} className="grid sm:grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <label className="text-sm font-medium">Customer *</label>
+                <select
+                  required
+                  value={form.customerId}
+                  onChange={(e) => setForm({ ...form, customerId: e.target.value, vehicleId: '' })}
+                  className="flex h-10 w-full rounded-lg border border-brand-border px-3 text-sm"
+                >
+                  <option value="">Select customer</option>
+                  {customers.map((c) => (
+                    <option key={c.id} value={c.id}>{c.name} — {c.mobile}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-sm font-medium">Vehicle *</label>
+                <select
+                  required
+                  value={form.vehicleId}
+                  onChange={(e) => setForm({ ...form, vehicleId: e.target.value })}
+                  disabled={!form.customerId}
+                  className="flex h-10 w-full rounded-lg border border-brand-border px-3 text-sm disabled:opacity-50"
+                >
+                  <option value="">{form.customerId ? 'Select vehicle' : 'Select customer first'}</option>
+                  {vehicles.map((v) => (
+                    <option key={v.id} value={v.id}>{v.registrationNo} — {v.make} {v.model}</option>
+                  ))}
+                </select>
+              </div>
+              <MasterSelect
+                category="SERVICE_TYPE"
+                label="Service Type"
+                required
+                value={form.serviceType}
+                onChange={(v) => setForm({ ...form, serviceType: v })}
+              />
+              <MasterSelect
+                category="BOOKING_SOURCE"
+                label="Booking Source"
+                value={form.bookingSource}
+                onChange={(v) => setForm({ ...form, bookingSource: v })}
+              />
+              <div className="space-y-1.5">
+                <label className="text-sm font-medium">Preferred Slot</label>
+                <input
+                  className="flex h-10 w-full rounded-lg border border-brand-border px-3 text-sm"
+                  placeholder="e.g. 10:00 AM"
+                  value={form.preferredSlot}
+                  onChange={(e) => setForm({ ...form, preferredSlot: e.target.value })}
+                />
+              </div>
+              <div className="space-y-1.5 sm:col-span-2">
+                <label className="text-sm font-medium">Customer Complaint</label>
+                <textarea
+                  className="flex w-full rounded-lg border border-brand-border px-3 py-2 text-sm min-h-[80px]"
+                  placeholder="Describe the issue..."
+                  value={form.customerComplaint}
+                  onChange={(e) => setForm({ ...form, customerComplaint: e.target.value })}
+                />
+              </div>
+              <div className="sm:col-span-2 flex gap-3">
+                <Button type="submit" disabled={saving}>{saving ? 'Saving...' : 'Create & Print Slip'}</Button>
+                <Button type="button" variant="outline" onClick={() => setShowForm(false)}>Cancel</Button>
+              </div>
+            </form>
+          </CardContent>
+        </Card>
+      )}
+
+      {printBooking && (
+        <Card ref={printRef} className="print-host-card border-brand-yellow/40 shadow-lg">
+          <CardHeader className="no-print flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-base">Booking Slip — {printBooking.bookingNumber}</CardTitle>
+            <Button variant="ghost" size="sm" onClick={() => setPrintBooking(null)}>
+              <X className="h-4 w-4" /> Close
+            </Button>
+          </CardHeader>
+          <CardContent>
+            <PrintableBookingSlip booking={printBooking} />
+          </CardContent>
+        </Card>
+      )}
+
+      <Card>
+        <CardContent className="p-0">
+          {loading ? (
+            <p className="text-center py-8 text-sm text-brand-muted">Loading bookings...</p>
+          ) : bookings.length === 0 ? (
+            <p className="text-center py-8 text-sm text-brand-muted">No bookings yet. Create one above.</p>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-brand-border bg-brand-grey/50">
+                    <th className="text-left px-5 py-3 font-medium text-brand-muted">Booking #</th>
+                    <th className="text-left px-3 py-3 font-medium text-brand-muted">Customer</th>
+                    <th className="text-left px-3 py-3 font-medium text-brand-muted">Vehicle</th>
+                    <th className="text-left px-3 py-3 font-medium text-brand-muted">Service</th>
+                    <th className="text-left px-3 py-3 font-medium text-brand-muted">Slot</th>
+                    <th className="text-left px-3 py-3 font-medium text-brand-muted">Status</th>
+                    <th className="text-right px-5 py-3 font-medium text-brand-muted">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {bookings.map((b) => (
+                    <tr key={b.id} className="border-b border-brand-border hover:bg-brand-grey/30">
+                      <td className="px-5 py-3 font-mono text-xs">{b.bookingNumber}</td>
+                      <td className="px-3 py-3">
+                        <span className="flex items-center gap-1.5"><User className="h-3.5 w-3.5" /> {b.customer?.name ?? '—'}</span>
+                      </td>
+                      <td className="px-3 py-3">
+                        <span className="flex items-center gap-1.5"><Car className="h-3.5 w-3.5" /> {b.vehicle?.registrationNo ?? '—'}</span>
+                      </td>
+                      <td className="px-3 py-3">{b.serviceType ?? '—'}</td>
+                      <td className="px-3 py-3">{b.preferredSlot ?? '—'}</td>
+                      <td className="px-3 py-3"><Badge>{b.status}</Badge></td>
+                      <td className="px-5 py-3 text-right">
+                        <div className="flex items-center justify-end gap-1">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            disabled={loadingPrint === b.id}
+                            onClick={() => openPrintSlip(b.id)}
+                          >
+                            <Printer className="h-3.5 w-3.5" />
+                            {loadingPrint === b.id ? '...' : 'Slip'}
+                          </Button>
+                          {b.status !== 'ARRIVED' && b.status !== 'CANCELLED' && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              disabled={startingVisit === b.id}
+                              onClick={() => handleStartVisit(b.id)}
+                            >
+                              <Play className="h-3.5 w-3.5" />
+                              {startingVisit === b.id ? 'Starting...' : 'Start Visit'}
+                            </Button>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    </div>
+  )
+}
