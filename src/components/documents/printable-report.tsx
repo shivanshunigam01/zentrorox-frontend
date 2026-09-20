@@ -66,12 +66,13 @@ export function PrintableReport({
           </div>
         </div>
 
+        <div className="print:grid print:grid-cols-2 print:gap-2 print:mb-2">
         {allSections.map((section) => (
-          <div key={section.title} className="mb-6 break-inside-avoid">
-            <h2 className="text-xs font-bold uppercase tracking-wider text-brand-charcoal border-b border-brand-charcoal pb-1 mb-2">
+          <div key={section.title} className="mb-6 print:mb-0 break-inside-avoid">
+            <h2 className="text-xs print:text-[9px] font-bold uppercase tracking-wider text-brand-charcoal border-b border-brand-charcoal pb-1 mb-2 print:mb-1">
               {section.title}
             </h2>
-            <table className="w-full text-[11px] border-collapse">
+            <table className="w-full text-[11px] print:text-[8px] border-collapse">
               <thead>
                 <tr className="bg-brand-charcoal text-white">
                   <th className="text-left px-3 py-1.5 border border-brand-charcoal w-[60%]">Metric</th>
@@ -89,8 +90,9 @@ export function PrintableReport({
             </table>
           </div>
         ))}
+        </div>
 
-        <div className="text-[10px] text-brand-muted border border-dashed border-brand-border rounded p-3 mb-4">
+        <div className="text-[10px] print:text-[8px] text-brand-muted border border-dashed border-brand-border rounded p-3 mb-4 print:p-2 print:mb-2">
           <p className="font-semibold text-brand-charcoal mb-1">Confidentiality Notice</p>
           <p>This report contains proprietary business information of {profile?.tenant.name ?? BRAND.name}. Unauthorized distribution is prohibited.</p>
         </div>

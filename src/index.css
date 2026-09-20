@@ -158,10 +158,10 @@ body {
   left: 150%;
 }
 
-/* Print / PDF document styles — production A4 output */
+/* Print / PDF document styles — production A4 output, single page */
 @media print {
   @page {
-    margin: 10mm 12mm;
+    margin: 8mm;
     size: A4 portrait;
   }
 
@@ -220,7 +220,8 @@ body {
     margin: 0 !important;
   }
 
-  .document-page {
+  .document-page,
+  .document-fit-page {
     border: none !important;
     border-radius: 0 !important;
     padding: 0 !important;
@@ -228,25 +229,83 @@ body {
     box-shadow: none !important;
   }
 
+  /* Force entire document onto one A4 page */
+  .document-single-page {
+    page-break-before: avoid !important;
+    page-break-after: avoid !important;
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+
+  .document-fit-page {
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+    max-height: 281mm;
+    overflow: hidden;
+    transform: scale(0.94);
+    transform-origin: top left;
+    width: 106.4%;
+  }
+
   .document-header img {
-    max-height: 64px;
+    max-height: 44px !important;
   }
 
-  table {
-    page-break-inside: auto;
+  .document-fit-page .document-header h1 {
+    font-size: 14px !important;
   }
 
-  tr {
-    page-break-inside: avoid;
-    page-break-after: auto;
+  .document-fit-page table {
+    font-size: 8.5px !important;
+    page-break-inside: avoid !important;
+  }
+
+  .document-fit-page th,
+  .document-fit-page td {
+    padding: 2px 4px !important;
+    line-height: 1.15 !important;
+  }
+
+  .document-fit-page .mb-4,
+  .document-fit-page .mb-5,
+  .document-fit-page .mb-6 {
+    margin-bottom: 6px !important;
+  }
+
+  .document-fit-page .gap-4 {
+    gap: 6px !important;
+  }
+
+  .document-fit-page .p-3 {
+    padding: 6px !important;
+  }
+
+  .document-fit-page ul {
+    margin: 0 !important;
+  }
+
+  .document-fit-page li {
+    line-height: 1.15 !important;
   }
 
   .document-footer {
-    page-break-inside: avoid;
+    page-break-inside: avoid !important;
+    margin-top: 6px !important;
+    padding-top: 4px !important;
+  }
+
+  .document-signature-line {
+    margin-top: 16px !important;
   }
 
   .break-inside-avoid {
-    break-inside: avoid;
-    page-break-inside: avoid;
+    break-inside: avoid !important;
+    page-break-inside: avoid !important;
+  }
+
+  /* Prevent extra blank pages */
+  html, body {
+    height: auto !important;
+    overflow: hidden !important;
   }
 }

@@ -23,13 +23,13 @@ export function DocumentHeader({
   const branch = profile?.branch
 
   return (
-    <div className="document-header border-b-2 border-brand-charcoal pb-4 mb-5">
+    <div className="document-header border-b-2 border-brand-charcoal pb-4 mb-5 print:pb-2 print:mb-3">
       <div className="flex items-start justify-between gap-4">
         <div className="flex items-start gap-4 min-w-0">
           <img
             src={BRAND.logo}
             alt={BRAND.logoAlt}
-            className="h-[72px] w-auto object-contain shrink-0 print:h-[64px]"
+            className="h-[72px] w-auto object-contain shrink-0 print:h-[44px]"
           />
           <div className="min-w-0">
             <p className="text-sm font-bold text-brand-charcoal leading-tight">

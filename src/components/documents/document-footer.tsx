@@ -18,7 +18,7 @@ export function DocumentFooter({
   ]
 
   return (
-    <footer className="document-footer mt-8 pt-4 border-t-2 border-brand-charcoal/20">
+    <footer className="document-footer mt-8 pt-4 border-t-2 border-brand-charcoal/20 print:mt-3 print:pt-2">
       {(terms === undefined ? defaultTerms : terms).length > 0 && (
         <div className="mb-4">
           <p className="text-[10px] font-bold uppercase tracking-wider text-brand-muted mb-1">Terms & Conditions</p>
@@ -31,12 +31,12 @@ export function DocumentFooter({
       {showSignature && (
         <div className="grid grid-cols-2 gap-8 items-end">
           <div>
-            <div className="border-t border-brand-border pt-1 mt-12 w-48">
+            <div className="document-signature-line border-t border-brand-border pt-1 mt-12 print:mt-4 w-48">
               <p className="text-[10px] text-brand-muted">Customer Signature</p>
             </div>
           </div>
           <div className="text-right">
-            <div className="border-t border-brand-border pt-1 mt-12 ml-auto w-48">
+            <div className="document-signature-line border-t border-brand-border pt-1 mt-12 print:mt-4 ml-auto w-48">
               <p className="text-[10px] text-brand-muted">Authorised Signatory</p>
               <p className="text-xs font-semibold text-brand-charcoal">{BRAND.name}</p>
             </div>

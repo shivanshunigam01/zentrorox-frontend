@@ -93,9 +93,9 @@ export function PrintableBookingSlip({ booking }: PrintableBookingSlipProps) {
           )}
         </div>
 
-        <div className="bg-brand-yellow/10 border border-brand-yellow/30 rounded-lg p-3 mb-4 text-[11px]">
-          <p className="font-semibold text-brand-charcoal mb-1">Important Instructions</p>
-          <ul className="list-disc list-inside text-brand-muted space-y-0.5">
+        <div className="bg-brand-yellow/10 border border-brand-yellow/30 rounded-lg p-3 mb-4 print:p-2 print:mb-2 text-[11px] print:text-[9px]">
+          <p className="font-semibold text-brand-charcoal mb-1 print:mb-0.5">Important Instructions</p>
+          <ul className="list-disc list-inside text-brand-muted space-y-0.5 print:space-y-0 print:leading-tight">
             <li>Please arrive 10 minutes before your scheduled slot.</li>
             <li>Carry vehicle RC, insurance and previous service records if available.</li>
             <li>Remove valuables from the vehicle before handover.</li>
@@ -104,7 +104,7 @@ export function PrintableBookingSlip({ booking }: PrintableBookingSlipProps) {
         </div>
 
         {booking.serviceVisit && (
-          <p className="text-xs text-brand-muted mb-4">
+          <p className="text-xs print:text-[9px] text-brand-muted mb-4 print:mb-2">
             Linked Service Visit: <span className="font-mono font-medium">{booking.serviceVisit.visitNumber}</span>
           </p>
         )}
