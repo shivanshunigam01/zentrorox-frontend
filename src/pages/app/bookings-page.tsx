@@ -124,7 +124,7 @@ export function BookingsPage() {
       />
 
       {showForm && (
-        <Card>
+        <Card className="no-print">
           <CardHeader><CardTitle>Create Booking</CardTitle></CardHeader>
           <CardContent>
             <form onSubmit={handleCreate} className="grid sm:grid-cols-2 gap-4">
@@ -211,7 +211,7 @@ export function BookingsPage() {
         </Card>
       )}
 
-      <Card>
+      <Card className="no-print">
         <CardContent className="p-0">
           {loading ? (
             <p className="text-center py-8 text-sm text-brand-muted">Loading bookings...</p>

@@ -25,7 +25,7 @@ export function PageBanner({
   className,
 }: PageBannerProps) {
   return (
-    <div className={cn('relative overflow-hidden rounded-2xl bg-gradient-to-r p-6 text-white', gradient, className)}>
+    <div className={cn('page-banner no-print relative overflow-hidden rounded-2xl bg-gradient-to-r p-6 text-white', gradient, className)}>
       {illustration && (
         <img
           src={illustration}

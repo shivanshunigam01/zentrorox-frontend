@@ -171,6 +171,23 @@ body {
     -webkit-print-color-adjust: exact;
   }
 
+  /* Show only the printable document — hides banners, sidebar, tables, forms */
+  body * {
+    visibility: hidden;
+  }
+
+  .printable-document,
+  .printable-document * {
+    visibility: visible;
+  }
+
+  .printable-document {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+  }
+
   .app-shell > aside,
   .app-shell .topbar,
   .page-banner,
