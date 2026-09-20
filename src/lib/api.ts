@@ -277,6 +277,9 @@ export const bookingsApi = {
   create: (token: string, body: Record<string, unknown>, branchId?: string) =>
     api<BookingItem>('/bookings', { method: 'POST', token, branchId, body: JSON.stringify(body) }),
 
+  update: (token: string, id: string, body: Record<string, unknown>, branchId?: string) =>
+    api<BookingDetail>(`/bookings/${id}`, { method: 'PATCH', token, branchId, body: JSON.stringify(body) }),
+
   createVisitFromBooking: (token: string, bookingId: string, branchId?: string) =>
     api<ServiceVisitDetail>(`/service-visits/from-booking/${bookingId}`, { method: 'POST', token, branchId }),
 }
