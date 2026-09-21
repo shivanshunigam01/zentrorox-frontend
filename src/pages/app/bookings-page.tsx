@@ -6,6 +6,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { PageBanner } from '@/components/ui/page-banner'
 import { Badge } from '@/components/ui/badge'
 import { MasterSelect } from '@/components/ui/master-select'
+import { Input } from '@/components/ui/input'
+import { VehiclePhotoCapture } from '@/components/ui/vehicle-photo-capture'
 import { PrintableBookingSlip } from '@/components/documents/printable-booking-slip'
 import { bookingsApi, customersApi, vehiclesApi, type BookingItem, type BookingDetail, type CustomerItem, type VehicleItem } from '@/lib/api'
 import { authStorage } from '@/lib/auth-storage'
@@ -22,6 +24,10 @@ const emptyForm = {
   customerComplaint: '',
   status: 'BOOKED',
   remarks: '',
+  engineNo: '',
+  chassisNo: '',
+  vehicleImageUrl: '',
+  vehicleImagePublicId: '',
 }
 
 export function BookingsPage() {
@@ -68,6 +74,19 @@ export function BookingsPage() {
     vehiclesApi.list(token, { customerId: form.customerId }).then((r) => setVehicles(r.items))
   }, [form.customerId, token])
 
+  useEffect(() => {
+    if (!form.vehicleId) return
+    const selected = vehicles.find((v) => v.id === form.vehicleId)
+    if (!selected) return
+    setForm((prev) => ({
+      ...prev,
+      engineNo: prev.engineNo || selected.engineNo || '',
+      chassisNo: prev.chassisNo || selected.chassisNo || selected.vin || '',
+      vehicleImageUrl: prev.vehicleImageUrl || selected.imageUrl || '',
+      vehicleImagePublicId: prev.vehicleImagePublicId || selected.imagePublicId || '',
+    }))
+  }, [form.vehicleId, vehicles])
+
   const resetForm = () => {
     setShowForm(false)
     setEditingId(null)
@@ -98,6 +117,10 @@ export function BookingsPage() {
         customerComplaint: detail.customerComplaint ?? '',
         status: detail.status ?? 'BOOKED',
         remarks: detail.remarks ?? '',
+        engineNo: detail.vehicle?.engineNo ?? '',
+        chassisNo: detail.vehicle?.chassisNo ?? detail.vehicle?.vin ?? '',
+        vehicleImageUrl: detail.vehicle?.imageUrl ?? '',
+        vehicleImagePublicId: detail.vehicle?.imagePublicId ?? '',
       })
       setShowForm(true)
     } finally {
@@ -136,6 +159,13 @@ export function BookingsPage() {
     if (!token || !branchId) return
     setSaving(true)
     try {
+      const vehiclePayload = {
+        engineNo: form.engineNo || undefined,
+        chassisNo: form.chassisNo || undefined,
+        vehicleImageUrl: form.vehicleImageUrl || undefined,
+        vehicleImagePublicId: form.vehicleImagePublicId || undefined,
+      }
+
       if (editingId) {
         await bookingsApi.update(token, editingId, {
           customerId: form.customerId,
@@ -147,6 +177,7 @@ export function BookingsPage() {
           customerComplaint: form.customerComplaint,
           status: form.status,
           remarks: form.remarks,
+          ...vehiclePayload,
         }, branchId)
         resetForm()
         await load()
@@ -161,6 +192,7 @@ export function BookingsPage() {
           preferredDate: form.preferredDate || undefined,
           customerComplaint: form.customerComplaint,
           remarks: form.remarks,
+          ...vehiclePayload,
         }, branchId)
         resetForm()
         await load()
@@ -217,7 +249,14 @@ export function BookingsPage() {
                 <select
                   required
                   value={form.vehicleId}
-                  onChange={(e) => setForm({ ...form, vehicleId: e.target.value })}
+                  onChange={(e) => setForm({
+                    ...form,
+                    vehicleId: e.target.value,
+                    engineNo: '',
+                    chassisNo: '',
+                    vehicleImageUrl: '',
+                    vehicleImagePublicId: '',
+                  })}
                   disabled={!form.customerId}
                   className="flex h-10 w-full rounded-lg border border-brand-border px-3 text-sm disabled:opacity-50"
                 >
@@ -227,6 +266,32 @@ export function BookingsPage() {
                   ))}
                 </select>
               </div>
+              <Input
+                label="Engine Number"
+                placeholder="e.g. L15Z1-7890123"
+                value={form.engineNo}
+                onChange={(e) => setForm({ ...form, engineNo: e.target.value })}
+              />
+              <Input
+                label="Chassis Number"
+                placeholder="e.g. MAHFR2WK5K1234567"
+                value={form.chassisNo}
+                onChange={(e) => setForm({ ...form, chassisNo: e.target.value })}
+              />
+              <VehiclePhotoCapture
+                imageUrl={form.vehicleImageUrl || undefined}
+                entityId={form.vehicleId || undefined}
+                onUploaded={({ url, publicId }) => setForm({
+                  ...form,
+                  vehicleImageUrl: url,
+                  vehicleImagePublicId: publicId,
+                })}
+                onCleared={() => setForm({
+                  ...form,
+                  vehicleImageUrl: '',
+                  vehicleImagePublicId: '',
+                })}
+              />
               <MasterSelect
                 category="SERVICE_TYPE"
                 label="Service Type"

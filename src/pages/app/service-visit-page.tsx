@@ -5,6 +5,7 @@ import {
   Package, Camera, AlertCircle, ChevronRight,
 } from 'lucide-react'
 import { ServiceVisitWorkspace } from '@/components/service-visit/service-visit-workspace'
+import { ArrivalGateForm } from '@/components/service-visit/arrival-gate-form'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -249,6 +250,14 @@ export function ServiceVisitPage() {
                 </div>
               )}
             </div>
+          ) : stage === 'gate-in' ? (
+            <ArrivalGateForm
+              visit={visit}
+              onSaved={setVisit}
+              onAdvance={handleAdvanceStage}
+              advancing={advancing}
+              canAdvance={Boolean(nextPath)}
+            />
           ) : (
             <div className="p-8">
               <div className="text-center mb-6">

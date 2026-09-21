@@ -61,10 +61,16 @@ export function PrintableBookingSlip({ booking }: PrintableBookingSlipProps) {
             <InfoRow label="Registration" value={booking.vehicle?.registrationNo} />
             <InfoRow label="Make / Model" value={`${booking.vehicle?.make ?? ''} ${booking.vehicle?.model ?? ''}`.trim()} />
             <InfoRow label="Variant" value={booking.vehicle?.variant} />
-            <InfoRow label="VIN / Chassis" value={booking.vehicle?.vin} />
+            <InfoRow label="Chassis No." value={booking.vehicle?.chassisNo ?? booking.vehicle?.vin} />
             <InfoRow label="Engine No." value={booking.vehicle?.engineNo} />
             <InfoRow label="Fuel Type" value={booking.vehicle?.fuelType} />
             <InfoRow label="Odometer" value={booking.vehicle?.odometer ? `${booking.vehicle.odometer.toLocaleString()} km` : undefined} />
+            {booking.vehicle?.imageUrl && (
+              <div className="mt-2 pt-2 border-t border-brand-border">
+                <p className="text-[10px] font-bold uppercase text-brand-muted mb-1">Vehicle Photo</p>
+                <img src={booking.vehicle.imageUrl} alt="Vehicle" className="h-20 w-28 object-cover rounded border border-brand-border" />
+              </div>
+            )}
           </div>
         </div>
 

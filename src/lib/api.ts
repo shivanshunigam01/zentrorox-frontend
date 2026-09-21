@@ -193,6 +193,11 @@ export interface VehicleItem {
   make: string
   model: string
   variant?: string
+  engineNo?: string
+  chassisNo?: string
+  vin?: string
+  imageUrl?: string
+  imagePublicId?: string
   customerId?: string
   customer?: { name: string; mobile?: string }
 }
@@ -239,9 +244,12 @@ export interface BookingDetail {
     model?: string
     variant?: string
     vin?: string
+    chassisNo?: string
     engineNo?: string
     fuelType?: string
     odometer?: number
+    imageUrl?: string
+    imagePublicId?: string
   }
   branch?: {
     name?: string
@@ -344,6 +352,9 @@ export const vehiclesApi = {
 
   create: (token: string, body: Record<string, unknown>, branchId?: string) =>
     api<VehicleItem>('/vehicles', { method: 'POST', token, branchId, body: JSON.stringify(body) }),
+
+  update: (token: string, id: string, body: Record<string, unknown>, branchId?: string) =>
+    api<VehicleItem>(`/vehicles/${id}`, { method: 'PATCH', token, branchId, body: JSON.stringify(body) }),
 }
 
 export const bookingsApi = {
@@ -382,7 +393,11 @@ export interface ServiceVisitDetail {
   model?: string
   variant?: string
   vin?: string
+  chassisNo?: string
   engineNo?: string
+  vehicleImageUrl?: string
+  vehicleImagePublicId?: string
+  vehicleId?: string
   jobCardNumber?: string
   advisor?: string
   status: string
