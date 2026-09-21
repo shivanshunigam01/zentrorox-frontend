@@ -1,9 +1,13 @@
+import { authStorage } from './auth-storage'
+
 const API_BASE =
   import.meta.env.VITE_API_BASE_URL ?? 'https://zentrorox.zentroverse.com/api/v1'
 
 interface ApiOptions extends RequestInit {
   token?: string
   branchId?: string
+  /** @internal skip refresh retry (prevents infinite loops) */
+  _retry?: boolean
 }
 
 interface ApiResponse<T> {
@@ -12,22 +16,94 @@ interface ApiResponse<T> {
   error?: { code: string; message: string; details?: unknown }
 }
 
-export async function api<T>(endpoint: string, options: ApiOptions = {}): Promise<T> {
-  const { token, branchId, headers, ...rest } = options
+let refreshPromise: Promise<string | null> | null = null
 
-  const res = await fetch(`${API_BASE}${endpoint}`, {
-    ...rest,
-    headers: {
-      'Content-Type': 'application/json',
-      ...(token && { Authorization: `Bearer ${token}` }),
-      ...(branchId && { 'X-Branch-Id': branchId }),
-      ...headers,
-    },
+function redirectToLogin() {
+  authStorage.clear()
+  if (!window.location.pathname.startsWith('/login')) {
+    window.location.href = '/login?session=expired'
+  }
+}
+
+async function refreshAccessToken(): Promise<string | null> {
+  const refreshToken = authStorage.getRefreshToken()
+  if (!refreshToken) return null
+
+  const res = await fetch(`${API_BASE}/auth/refresh`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ refreshToken }),
   })
 
+  const json: ApiResponse<{ accessToken: string }> = await res.json()
+  if (!res.ok || !json.success || !json.data?.accessToken) {
+    return null
+  }
+
+  authStorage.setToken(json.data.accessToken)
+  return json.data.accessToken
+}
+
+async function ensureFreshAccessToken(): Promise<string | null> {
+  if (!refreshPromise) {
+    refreshPromise = refreshAccessToken().finally(() => {
+      refreshPromise = null
+    })
+  }
+  return refreshPromise
+}
+
+function buildAuthHeaders(
+  token: string | undefined,
+  branchId: string | undefined,
+  headers: HeadersInit | undefined,
+  jsonBody: boolean,
+): HeadersInit {
+  return {
+    ...(jsonBody && { 'Content-Type': 'application/json' }),
+    ...(token && { Authorization: `Bearer ${token}` }),
+    ...(branchId && { 'X-Branch-Id': branchId }),
+    ...headers,
+  }
+}
+
+async function fetchWithAuth(
+  endpoint: string,
+  options: ApiOptions = {},
+): Promise<Response> {
+  const { token, branchId, headers, _retry, ...rest } = options
+  const authToken = token ?? authStorage.getToken() ?? undefined
+  const jsonBody = !(rest.body instanceof FormData)
+
+  let res = await fetch(`${API_BASE}${endpoint}`, {
+    ...rest,
+    headers: buildAuthHeaders(authToken, branchId, headers, jsonBody),
+  })
+
+  const isAuthRoute = endpoint.startsWith('/auth/login') || endpoint.startsWith('/auth/refresh')
+  if (res.status === 401 && authToken && !_retry && !isAuthRoute) {
+    const newToken = await ensureFreshAccessToken()
+    if (newToken) {
+      res = await fetch(`${API_BASE}${endpoint}`, {
+        ...rest,
+        headers: buildAuthHeaders(newToken, branchId, headers, jsonBody),
+      })
+    } else {
+      redirectToLogin()
+    }
+  }
+
+  return res
+}
+
+export async function api<T>(endpoint: string, options: ApiOptions = {}): Promise<T> {
+  const res = await fetchWithAuth(endpoint, options)
   const json: ApiResponse<T> = await res.json()
 
   if (!res.ok || !json.success) {
+    if (res.status === 401 && !endpoint.startsWith('/auth/')) {
+      redirectToLogin()
+    }
     throw new Error(json.error?.message || 'Request failed')
   }
 
@@ -81,6 +157,13 @@ export interface DashboardData {
 export const authApi = {
   login: (body: { tenantCode: string; identifier: string; password: string; rememberMe?: boolean }) =>
     api<LoginResponse>('/auth/login', { method: 'POST', body: JSON.stringify(body) }),
+
+  refresh: (refreshToken: string) =>
+    api<{ accessToken: string }>('/auth/refresh', {
+      method: 'POST',
+      body: JSON.stringify({ refreshToken }),
+      _retry: true,
+    }),
 
   me: (token: string) => api<LoginResponse['user']>('/auth/me', { token }),
 
@@ -512,14 +595,15 @@ export async function uploadImage(
   if (options?.entityId) formData.append('entityId', options.entityId)
   if (options?.folder) formData.append('folder', options.folder)
 
-  const res = await fetch(`${API_BASE}/uploads/image`, {
+  const res = await fetchWithAuth('/uploads/image', {
     method: 'POST',
-    headers: { Authorization: `Bearer ${token}` },
+    token,
     body: formData,
   })
 
   const json = await res.json()
   if (!res.ok || !json.success) {
+    if (res.status === 401) redirectToLogin()
     throw new Error(json.error?.message || 'Upload failed')
   }
   return json.data as UploadResult
@@ -535,14 +619,15 @@ export async function uploadInspectionPhotos(
   files.forEach((f) => formData.append('files', f))
   if (caption) formData.append('caption', caption)
 
-  const res = await fetch(`${API_BASE}/uploads/service-visits/${serviceVisitId}/inspection`, {
+  const res = await fetchWithAuth(`/uploads/service-visits/${serviceVisitId}/inspection`, {
     method: 'POST',
-    headers: { Authorization: `Bearer ${token}` },
+    token,
     body: formData,
   })
 
   const json = await res.json()
   if (!res.ok || !json.success) {
+    if (res.status === 401) redirectToLogin()
     throw new Error(json.error?.message || 'Upload failed')
   }
   return json.data as UploadResult[]

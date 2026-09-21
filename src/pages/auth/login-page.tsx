@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
@@ -33,6 +33,8 @@ const features = [
 
 export function LoginPage() {
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
+  const sessionExpired = searchParams.get('session') === 'expired'
   const [showPassword, setShowPassword] = useState(false)
   const [loading, setLoading] = useState(false)
   const [apiError, setApiError] = useState<string | null>(null)
@@ -127,6 +129,12 @@ export function LoginPage() {
                 <h1 className="text-2xl font-bold text-brand-charcoal">Welcome back 👋</h1>
                 <p className="text-sm text-brand-muted mt-1">Sign in to your ZENTROROX account</p>
               </div>
+
+              {sessionExpired && (
+                <div className="mb-4 rounded-xl bg-amber-50 border border-amber-200 px-4 py-3 text-sm text-amber-900">
+                  Your session expired. Please sign in again.
+                </div>
+              )}
 
               {apiError && (
                 <div className="mb-4 rounded-xl bg-red-50 border border-red-200 px-4 py-3 text-sm text-brand-danger">
