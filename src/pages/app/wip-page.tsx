@@ -57,19 +57,19 @@ export function WipPage() {
   return (
     <div className="space-y-6">
       {/* Header Banner */}
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-brand-charcoal to-brand-charcoal-light p-6 text-white">
+      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-brand-charcoal to-brand-charcoal-light p-4 sm:p-6 text-white">
         <div className="absolute right-0 top-0 opacity-10">
           <img src="/images/car-service.svg" alt="" className="h-32 w-32 animate-float" />
         </div>
-        <div className="relative flex flex-wrap items-center justify-between gap-4">
-          <div>
-            <h1 className="text-2xl font-bold flex items-center gap-2">
-              <Wrench className="h-6 w-6 text-brand-yellow" />
+        <div className="relative flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="min-w-0">
+            <h1 className="text-xl sm:text-2xl font-bold flex items-center gap-2">
+              <Wrench className="h-5 w-5 sm:h-6 sm:w-6 text-brand-yellow shrink-0" />
               WIP Control Tower
             </h1>
             <p className="text-sm text-white/60 mt-0.5">Real-time workshop floor visibility</p>
           </div>
-          <div className="flex gap-3">
+          <div className="flex gap-3 w-full sm:w-auto">
             <div className="rounded-xl bg-white/10 backdrop-blur-sm px-4 py-2 text-center">
               <p className="text-2xl font-bold">{totalWip}</p>
               <p className="text-xs text-white/60">Total WIP</p>
@@ -83,14 +83,14 @@ export function WipPage() {
       </div>
 
       {/* Kanban View */}
-      <div className="overflow-x-auto pb-4">
-        <div className="flex gap-4 min-w-max">
+      <div className="lg:overflow-x-auto lg:pb-4">
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:flex xl:min-w-max">
           {kanbanColumns.map((col) => {
             const cards = getCardsForColumn(col.name, vehicles)
             const ColIcon = col.icon
 
             return (
-              <div key={col.name} className={`w-72 shrink-0 rounded-xl border-t-4 ${col.color} bg-brand-grey/30 p-3`}>
+              <div key={col.name} className={`w-full xl:w-72 xl:shrink-0 rounded-xl border-t-4 ${col.color} bg-brand-grey/30 p-3`}>
                 <div className="flex items-center justify-between mb-3">
                   <h3 className="text-sm font-semibold text-brand-charcoal flex items-center gap-2">
                     <ColIcon className="h-4 w-4 text-brand-muted" />

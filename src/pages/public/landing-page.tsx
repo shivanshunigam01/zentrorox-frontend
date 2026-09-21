@@ -407,7 +407,7 @@ export function LandingPage() {
           </div>
           <div className="grid md:grid-cols-3 gap-6 max-w-5xl mx-auto">
             {pricingPlans.map((plan) => (
-              <Card key={plan.name} className={plan.popular ? 'ring-2 ring-brand-yellow relative scale-105 shadow-xl' : 'hover:shadow-[var(--shadow-card-hover)] transition-shadow'}>
+              <Card key={plan.name} className={plan.popular ? 'ring-2 ring-brand-yellow relative md:scale-105 shadow-xl' : 'hover:shadow-[var(--shadow-card-hover)] transition-shadow'}>
                 {plan.popular && (
                   <div className="absolute -top-3 left-1/2 -translate-x-1/2">
                     <Badge variant="default">Most Popular</Badge>

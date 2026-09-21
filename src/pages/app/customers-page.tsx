@@ -134,6 +134,9 @@ export function CustomersPage() {
                     <p className="flex items-center gap-2"><Phone className="h-3.5 w-3.5" /> {c.mobile}</p>
                     <p className="flex items-center gap-2"><Car className="h-3.5 w-3.5" /> {c.vehicles} vehicles</p>
                   </div>
+                  <Button variant="outline" size="sm" className="w-full mt-2" asChild>
+                    <Link to={`/app/crm/customers/${c.id}`}>View</Link>
+                  </Button>
                 </CardContent>
               </Card>
             ))}

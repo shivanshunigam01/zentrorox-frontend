@@ -315,82 +315,115 @@ export function BookingsPage() {
         </Card>
       )}
 
-      <Card className="no-print">
-        <CardContent className="p-0">
-          {loading ? (
-            <p className="text-center py-8 text-sm text-brand-muted">Loading bookings...</p>
-          ) : bookings.length === 0 ? (
-            <p className="text-center py-8 text-sm text-brand-muted">No bookings yet. Create one above.</p>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b border-brand-border bg-brand-grey/50">
-                    <th className="text-left px-5 py-3 font-medium text-brand-muted">Booking #</th>
-                    <th className="text-left px-3 py-3 font-medium text-brand-muted">Customer</th>
-                    <th className="text-left px-3 py-3 font-medium text-brand-muted">Vehicle</th>
-                    <th className="text-left px-3 py-3 font-medium text-brand-muted">Service</th>
-                    <th className="text-left px-3 py-3 font-medium text-brand-muted">Slot</th>
-                    <th className="text-left px-3 py-3 font-medium text-brand-muted">Status</th>
-                    <th className="text-right px-5 py-3 font-medium text-brand-muted">Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {bookings.map((b) => (
-                    <tr key={b.id} className="border-b border-brand-border hover:bg-brand-grey/30">
-                      <td className="px-5 py-3 font-mono text-xs">{b.bookingNumber}</td>
-                      <td className="px-3 py-3">
-                        <span className="flex items-center gap-1.5"><User className="h-3.5 w-3.5" /> {b.customer?.name ?? '—'}</span>
-                      </td>
-                      <td className="px-3 py-3">
-                        <span className="flex items-center gap-1.5"><Car className="h-3.5 w-3.5" /> {b.vehicle?.registrationNo ?? '—'}</span>
-                      </td>
-                      <td className="px-3 py-3">{b.serviceType ?? '—'}</td>
-                      <td className="px-3 py-3">{b.preferredSlot ?? '—'}</td>
-                      <td className="px-3 py-3"><Badge>{b.status}</Badge></td>
-                      <td className="px-5 py-3 text-right">
-                        <div className="flex items-center justify-end gap-1">
-                          {canEdit(b.status) && (
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              disabled={loadingEdit === b.id}
-                              onClick={() => openEdit(b.id)}
-                            >
-                              <Pencil className="h-3.5 w-3.5" />
-                              {loadingEdit === b.id ? '...' : 'Edit'}
-                            </Button>
-                          )}
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            disabled={loadingPrint === b.id}
-                            onClick={() => openPrintSlip(b.id)}
-                          >
-                            <Printer className="h-3.5 w-3.5" />
-                            {loadingPrint === b.id ? '...' : 'Slip'}
-                          </Button>
-                          {canEdit(b.status) && (
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              disabled={startingVisit === b.id}
-                              onClick={() => handleStartVisit(b.id)}
-                            >
-                              <Play className="h-3.5 w-3.5" />
-                              {startingVisit === b.id ? 'Starting...' : 'Start Visit'}
-                            </Button>
-                          )}
-                        </div>
-                      </td>
+      {loading ? (
+        <Card className="no-print"><p className="text-center py-8 text-sm text-brand-muted">Loading bookings...</p></Card>
+      ) : bookings.length === 0 ? (
+        <Card className="no-print"><p className="text-center py-8 text-sm text-brand-muted">No bookings yet. Create one above.</p></Card>
+      ) : (
+        <>
+          <div className="grid gap-3 lg:hidden no-print">
+            {bookings.map((b) => (
+              <Card key={b.id} className="hover:shadow-[var(--shadow-card-hover)] transition-shadow">
+                <CardContent className="p-4 space-y-3">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="font-mono text-xs text-brand-muted">{b.bookingNumber}</p>
+                      <p className="font-semibold truncate">{b.customer?.name ?? '—'}</p>
+                      <p className="text-sm text-brand-muted flex items-center gap-1.5 mt-1">
+                        <Car className="h-3.5 w-3.5 shrink-0" />
+                        <span className="truncate">{b.vehicle?.registrationNo ?? '—'}</span>
+                      </p>
+                    </div>
+                    <Badge className="shrink-0">{b.status}</Badge>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2 text-sm">
+                    <div>
+                      <p className="text-xs text-brand-muted">Service</p>
+                      <p className="font-medium">{b.serviceType ?? '—'}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-brand-muted">Slot</p>
+                      <p className="font-medium">{b.preferredSlot ?? '—'}</p>
+                    </div>
+                  </div>
+                  <div className="flex flex-wrap gap-2 pt-1">
+                    {canEdit(b.status) && (
+                      <Button variant="outline" size="sm" className="flex-1" disabled={loadingEdit === b.id} onClick={() => openEdit(b.id)}>
+                        <Pencil className="h-3.5 w-3.5" /> Edit
+                      </Button>
+                    )}
+                    <Button variant="outline" size="sm" className="flex-1" disabled={loadingPrint === b.id} onClick={() => openPrintSlip(b.id)}>
+                      <Printer className="h-3.5 w-3.5" /> Slip
+                    </Button>
+                    {canEdit(b.status) && (
+                      <Button size="sm" className="w-full" disabled={startingVisit === b.id} onClick={() => handleStartVisit(b.id)}>
+                        <Play className="h-3.5 w-3.5" />
+                        {startingVisit === b.id ? 'Starting...' : 'Start Visit'}
+                      </Button>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+
+          <Card className="no-print hidden lg:block">
+            <CardContent className="p-0">
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-brand-border bg-brand-grey/50">
+                      <th className="text-left px-5 py-3 font-medium text-brand-muted">Booking #</th>
+                      <th className="text-left px-3 py-3 font-medium text-brand-muted">Customer</th>
+                      <th className="text-left px-3 py-3 font-medium text-brand-muted">Vehicle</th>
+                      <th className="text-left px-3 py-3 font-medium text-brand-muted">Service</th>
+                      <th className="text-left px-3 py-3 font-medium text-brand-muted">Slot</th>
+                      <th className="text-left px-3 py-3 font-medium text-brand-muted">Status</th>
+                      <th className="text-right px-5 py-3 font-medium text-brand-muted">Actions</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </CardContent>
-      </Card>
+                  </thead>
+                  <tbody>
+                    {bookings.map((b) => (
+                      <tr key={b.id} className="border-b border-brand-border hover:bg-brand-grey/30">
+                        <td className="px-5 py-3 font-mono text-xs">{b.bookingNumber}</td>
+                        <td className="px-3 py-3">
+                          <span className="flex items-center gap-1.5"><User className="h-3.5 w-3.5" /> {b.customer?.name ?? '—'}</span>
+                        </td>
+                        <td className="px-3 py-3">
+                          <span className="flex items-center gap-1.5"><Car className="h-3.5 w-3.5" /> {b.vehicle?.registrationNo ?? '—'}</span>
+                        </td>
+                        <td className="px-3 py-3">{b.serviceType ?? '—'}</td>
+                        <td className="px-3 py-3">{b.preferredSlot ?? '—'}</td>
+                        <td className="px-3 py-3"><Badge>{b.status}</Badge></td>
+                        <td className="px-5 py-3 text-right">
+                          <div className="flex items-center justify-end gap-1">
+                            {canEdit(b.status) && (
+                              <Button variant="ghost" size="sm" disabled={loadingEdit === b.id} onClick={() => openEdit(b.id)}>
+                                <Pencil className="h-3.5 w-3.5" />
+                                {loadingEdit === b.id ? '...' : 'Edit'}
+                              </Button>
+                            )}
+                            <Button variant="ghost" size="sm" disabled={loadingPrint === b.id} onClick={() => openPrintSlip(b.id)}>
+                              <Printer className="h-3.5 w-3.5" />
+                              {loadingPrint === b.id ? '...' : 'Slip'}
+                            </Button>
+                            {canEdit(b.status) && (
+                              <Button variant="ghost" size="sm" disabled={startingVisit === b.id} onClick={() => handleStartVisit(b.id)}>
+                                <Play className="h-3.5 w-3.5" />
+                                {startingVisit === b.id ? 'Starting...' : 'Start Visit'}
+                              </Button>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </CardContent>
+          </Card>
+        </>
+      )}
     </div>
   )
 }

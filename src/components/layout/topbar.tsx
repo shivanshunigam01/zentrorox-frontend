@@ -2,8 +2,9 @@ import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   Search, Bell, Plus, HelpCircle, ChevronDown, LogOut, User, Building2,
-  Settings, Moon,
+  Settings, Moon, Menu,
 } from 'lucide-react'
+import { useSidebar } from './sidebar-context'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { AVATARS } from '@/lib/assets'
@@ -12,6 +13,7 @@ import { authApi, dashboardApi, searchApi, type SearchResultItem } from '@/lib/a
 
 export function TopBar() {
   const navigate = useNavigate()
+  const { open: openSidebar } = useSidebar()
   const [user, setUser] = useState<StoredUser | null>(authStorage.getUser())
   const [branchId, setBranchId] = useState(authStorage.getBranchId())
   const [showProfile, setShowProfile] = useState(false)
@@ -97,17 +99,27 @@ export function TopBar() {
   const displayName = user ? `${user.firstName} ${user.lastName ?? ''}`.trim() : 'User'
 
   return (
-    <header className="topbar sticky top-0 z-30 flex h-16 items-center gap-4 border-b border-brand-border bg-white/95 backdrop-blur-sm px-6">
-      <div className="relative flex-1 max-w-xl">
+    <header className="topbar sticky top-0 z-30 flex h-14 sm:h-16 items-center gap-2 sm:gap-4 border-b border-brand-border bg-white/95 backdrop-blur-sm px-3 sm:px-4 lg:px-6">
+      <button
+        type="button"
+        aria-label="Open navigation menu"
+        className="rounded-xl p-2 hover:bg-brand-grey transition-colors lg:hidden shrink-0"
+        onClick={openSidebar}
+      >
+        <Menu className="h-5 w-5 text-brand-charcoal" />
+      </button>
+
+      <div className="relative flex-1 min-w-0 max-w-xl">
         <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-brand-muted" />
         <input
           type="text"
-          placeholder="Search registration, VIN, job card, invoice, customer..."
+          placeholder="Search..."
+          aria-label="Search registration, VIN, job card, invoice, customer"
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
           onFocus={() => searchResults.length > 0 && setShowSearch(true)}
           onBlur={() => setTimeout(() => setShowSearch(false), 200)}
-          className="h-10 w-full rounded-xl border border-brand-border bg-brand-grey/50 pl-10 pr-4 text-sm placeholder:text-brand-muted focus:outline-none focus:ring-2 focus:ring-brand-yellow focus:border-transparent transition-all"
+          className="h-9 sm:h-10 w-full rounded-xl border border-brand-border bg-brand-grey/50 pl-10 pr-3 sm:pr-4 text-sm placeholder:text-brand-muted focus:outline-none focus:ring-2 focus:ring-brand-yellow focus:border-transparent transition-all"
         />
         {showSearch && searchResults.length > 0 && (
           <div className="absolute left-0 right-0 top-full mt-1 rounded-xl border border-brand-border bg-white shadow-xl z-50 max-h-80 overflow-y-auto">
@@ -133,7 +145,7 @@ export function TopBar() {
         <button
           type="button"
           onClick={() => setShowBranch(!showBranch)}
-          className="flex items-center gap-2 rounded-xl border border-brand-border px-3 py-2 text-sm hover:bg-brand-grey transition-colors"
+          className="flex items-center gap-1.5 sm:gap-2 rounded-xl border border-brand-border px-2 sm:px-3 py-2 text-sm hover:bg-brand-grey transition-colors shrink-0"
         >
           <Building2 className="h-4 w-4 text-brand-yellow" />
           <span className="hidden md:inline font-medium">{activeBranch?.name ?? 'Branch'}</span>

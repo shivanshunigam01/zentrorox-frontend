@@ -74,25 +74,25 @@ export function DashboardPage() {
   return (
     <div className="space-y-6">
       {/* Welcome Banner */}
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-brand-charcoal to-brand-charcoal-light p-6 text-white">
+      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-brand-charcoal to-brand-charcoal-light p-4 sm:p-6 text-white">
         <img
           src={IMAGES.heroWorkshop}
           alt=""
           className="absolute inset-0 w-full h-full object-cover opacity-20"
         />
-        <div className="relative flex flex-wrap items-center justify-between gap-4">
-          <div>
+        <div className="relative flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="min-w-0">
             <div className="flex items-center gap-2 mb-2">
-              <Sparkles className="h-5 w-5 text-brand-yellow" />
+              <Sparkles className="h-5 w-5 text-brand-yellow shrink-0" />
               <span className="text-sm text-brand-yellow font-medium">Good morning, {user?.firstName ?? 'User'}!</span>
             </div>
-            <h1 className="text-2xl font-bold">Dashboard</h1>
+            <h1 className="text-xl sm:text-2xl font-bold">Dashboard</h1>
             <p className="text-sm text-white/60 mt-0.5 flex items-center gap-1.5">
-              <MapPin className="h-3.5 w-3.5" />
-              {branchName ?? 'Workshop'} — {new Date().toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'short', year: 'numeric' })}
+              <MapPin className="h-3.5 w-3.5 shrink-0" />
+              <span className="truncate">{branchName ?? 'Workshop'} — {new Date().toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'short', year: 'numeric' })}</span>
             </p>
           </div>
-          <Button asChild className="shadow-lg">
+          <Button asChild className="shadow-lg w-full sm:w-auto shrink-0">
             <Link to="/app/workshop/bookings">
               <Calendar className="h-4 w-4" /> + New Booking
             </Link>
@@ -204,7 +204,33 @@ export function DashboardPage() {
             </Button>
           </CardHeader>
           <CardContent className="p-0">
-            <div className="overflow-x-auto">
+            <div className="space-y-3 p-4 lg:hidden">
+              {wipVehicles.map((v) => (
+                <Link
+                  key={v.id}
+                  to={`/app/service-visits/${v.id}/wip`}
+                  className="block rounded-xl border border-brand-border p-4 hover:bg-brand-yellow/5 transition-colors"
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="font-semibold flex items-center gap-2">
+                        <Car className="h-4 w-4 text-brand-yellow shrink-0" />
+                        <span className="truncate">{v.registration}</span>
+                      </p>
+                      <p className="text-sm text-brand-muted mt-1">{v.model}</p>
+                    </div>
+                    <Badge variant={v.status === 'WIP' ? 'default' : v.status.includes('Pending') ? 'warning' : 'info'}>
+                      {v.status}
+                    </Badge>
+                  </div>
+                  <div className="mt-3 grid grid-cols-2 gap-2 text-xs text-brand-muted">
+                    <span>Ageing: {v.ageing ?? '—'}</span>
+                    <span className="truncate">{v.reason ?? v.status}</span>
+                  </div>
+                </Link>
+              ))}
+            </div>
+            <div className="hidden lg:block overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-brand-border bg-brand-grey/50">

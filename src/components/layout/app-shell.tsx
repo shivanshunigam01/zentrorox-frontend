@@ -1,8 +1,19 @@
+import { useEffect } from 'react'
 import { Outlet } from 'react-router-dom'
 import { Sidebar } from './sidebar'
 import { TopBar } from './topbar'
+import { SidebarProvider, useSidebar } from './sidebar-context'
 
-export function AppShell() {
+function AppShellContent() {
+  const { isOpen, close } = useSidebar()
+
+  useEffect(() => {
+    document.body.style.overflow = isOpen ? 'hidden' : ''
+    return () => {
+      document.body.style.overflow = ''
+    }
+  }, [isOpen])
+
   return (
     <div className="app-shell min-h-screen bg-brand-grey relative">
       {/* Subtle background pattern */}
@@ -17,13 +28,30 @@ export function AppShell() {
         />
       </div>
 
+      {isOpen && (
+        <button
+          type="button"
+          aria-label="Close navigation menu"
+          className="fixed inset-0 z-40 bg-black/40 lg:hidden"
+          onClick={close}
+        />
+      )}
+
       <Sidebar />
-      <div className="pl-64 relative">
+      <div className="relative lg:pl-64">
         <TopBar />
-        <main className="p-6">
+        <main className="p-4 sm:p-6">
           <Outlet />
         </main>
       </div>
     </div>
+  )
+}
+
+export function AppShell() {
+  return (
+    <SidebarProvider>
+      <AppShellContent />
+    </SidebarProvider>
   )
 }
