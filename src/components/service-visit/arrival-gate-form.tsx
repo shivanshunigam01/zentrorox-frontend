@@ -53,6 +53,10 @@ export function ArrivalGateForm({
 
   const handleSave = async () => {
     if (!token) return
+    if (!form.vehicleImageUrl) {
+      setError('Vehicle photo is required at gate-in. Use camera or choose a file.')
+      return
+    }
     setSaving(true)
     setError(null)
     setSuccess(false)
@@ -81,7 +85,7 @@ export function ArrivalGateForm({
         <div>
           <h3 className="text-lg font-semibold text-brand-charcoal">Gate-In / Arrival Details</h3>
           <p className="text-sm text-brand-muted mt-1">
-            Confirm or update engine number, chassis number, odometer, fuel and vehicle photo before advancing.
+            Capture the vehicle photo here at gate entry. Confirm engine, chassis, odometer and fuel before advancing.
           </p>
         </div>
         <Badge variant="default">{visit.registrationNumber}</Badge>
@@ -130,13 +134,17 @@ export function ArrivalGateForm({
         </div>
 
         <VehiclePhotoCapture
+          label="Vehicle Photo * (capture at gate-in)"
           imageUrl={form.vehicleImageUrl || undefined}
           entityId={visit.vehicleId}
-          onUploaded={({ url, publicId }) => setForm({
-            ...form,
-            vehicleImageUrl: url,
-            vehicleImagePublicId: publicId,
-          })}
+          onUploaded={({ url, publicId }) => {
+            setError(null)
+            setForm({
+              ...form,
+              vehicleImageUrl: url,
+              vehicleImagePublicId: publicId,
+            })
+          }}
           onCleared={() => setForm({
             ...form,
             vehicleImageUrl: '',
@@ -165,12 +173,25 @@ export function ArrivalGateForm({
       )}
 
       <div className="flex flex-col sm:flex-row gap-3">
-        <Button onClick={handleSave} disabled={saving || !form.engineNo || !form.chassisNo}>
+        <Button
+          onClick={handleSave}
+          disabled={saving || !form.engineNo || !form.chassisNo || !form.vehicleImageUrl}
+        >
           <Save className="h-4 w-4" />
           {saving ? 'Saving...' : 'Save Arrival Details'}
         </Button>
         {canAdvance && onAdvance && (
-          <Button variant="outline" onClick={onAdvance} disabled={advancing}>
+          <Button
+            variant="outline"
+            onClick={() => {
+              if (!form.vehicleImageUrl) {
+                setError('Upload vehicle photo at gate-in before advancing.')
+                return
+              }
+              onAdvance()
+            }}
+            disabled={advancing || !form.vehicleImageUrl}
+          >
             {advancing ? 'Advancing...' : (
               <>
                 Advance to Next Stage

@@ -6,6 +6,7 @@ import {
 } from 'lucide-react'
 import { ServiceVisitWorkspace } from '@/components/service-visit/service-visit-workspace'
 import { ArrivalGateForm } from '@/components/service-visit/arrival-gate-form'
+import { PickupForm } from '@/components/service-visit/pickup-form'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -23,6 +24,7 @@ const stageContent: Record<string, { title: string; description: string; emoji: 
     emoji: '🔧',
   },
   booking: { title: 'Booking', description: 'Service booking details, preferred slot and customer complaint.', emoji: '📅' },
+  pickup: { title: 'Vehicle Pickup', description: 'Assign executive and capture vehicle photos with location and timestamp at pickup.', emoji: '🚚' },
   'gate-in': { title: 'Gate-In / Arrival', description: 'Record vehicle arrival, odometer, fuel level and parking.', emoji: '🚧' },
   receiving: { title: 'Vehicle Receiving', description: 'Document vehicle condition, accessories, keys and belongings.', emoji: '📋' },
   voc: { title: 'Voice of Customer', description: 'Capture structured complaint lines and customer voice.', emoji: '💬' },
@@ -100,6 +102,13 @@ export function ServiceVisitPage() {
   useEffect(() => {
     loadVisit()
   }, [visitId])
+
+  const handlePickupUpdated = (updated: ServiceVisitDetail) => {
+    setVisit(updated)
+    if (updated.currentStage === 'ARRIVAL' && visitId) {
+      navigate(`/app/service-visits/${visitId}/gate-in`)
+    }
+  }
 
   const handleAdvanceStage = async () => {
     if (!token || !visitId || !visit) return
@@ -250,6 +259,8 @@ export function ServiceVisitPage() {
                 </div>
               )}
             </div>
+          ) : stage === 'pickup' ? (
+            <PickupForm visit={visit} onUpdated={handlePickupUpdated} />
           ) : stage === 'gate-in' ? (
             <ArrivalGateForm
               visit={visit}

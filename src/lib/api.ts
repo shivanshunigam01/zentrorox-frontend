@@ -1,4 +1,6 @@
 import { authStorage } from './auth-storage'
+import { isLocalApiEnabled } from './local-mode'
+import { localApiRequest } from './local-api'
 
 const API_BASE =
   import.meta.env.VITE_API_BASE_URL ?? 'https://zentrorox.zentroverse.com/api/v1'
@@ -28,6 +30,22 @@ function redirectToLogin() {
 async function refreshAccessToken(): Promise<string | null> {
   const refreshToken = authStorage.getRefreshToken()
   if (!refreshToken) return null
+
+  if (isLocalApiEnabled()) {
+    try {
+      const data = await localApiRequest<{ accessToken: string }>('/auth/refresh', {
+        method: 'POST',
+        body: JSON.stringify({ refreshToken }),
+      })
+      if (data?.accessToken) {
+        authStorage.setToken(data.accessToken)
+        return data.accessToken
+      }
+    } catch {
+      return null
+    }
+    return null
+  }
 
   const res = await fetch(`${API_BASE}/auth/refresh`, {
     method: 'POST',
@@ -97,6 +115,19 @@ async function fetchWithAuth(
 }
 
 export async function api<T>(endpoint: string, options: ApiOptions = {}): Promise<T> {
+  if (isLocalApiEnabled()) {
+    const { token, branchId: _branchId, body, method, headers: _headers, _retry, ...rest } = options
+    void _branchId
+    void _headers
+    void _retry
+    void rest
+    return localApiRequest<T>(endpoint, {
+      method,
+      body: typeof body === 'string' ? body : body ? JSON.stringify(body) : undefined,
+      token,
+    })
+  }
+
   const res = await fetchWithAuth(endpoint, options)
   const json: ApiResponse<T> = await res.json()
 
@@ -209,6 +240,7 @@ export interface BookingItem {
   serviceType?: string
   preferredSlot?: string
   status: string
+  pickupRequired?: boolean
   customer?: { name: string; mobile?: string }
   vehicle?: { registrationNo: string; make: string; model: string }
 }
@@ -224,6 +256,8 @@ export interface BookingDetail {
   preferredDate?: string
   pickupRequired?: boolean
   pickupAddress?: string
+  pickupLocationLat?: number
+  pickupLocationLng?: number
   source?: string
   remarks?: string
   customer?: {
@@ -383,6 +417,20 @@ export const tenantApi = {
     api<TenantProfile>('/tenant/profile', { token, branchId }),
 }
 
+export type PickupImageType =
+  | 'FRONT' | 'REAR' | 'LEFT' | 'RIGHT' | 'STEPNEY' | 'INTERIOR' | 'OTHER_GOODS'
+
+export interface PickupImageRecord {
+  type: PickupImageType
+  url: string
+  publicId?: string
+  caption?: string
+  latitude?: number
+  longitude?: number
+  capturedAt: string
+  uploadedAt?: string
+}
+
 export interface ServiceVisitDetail {
   id: string
   visitNumber: string
@@ -398,6 +446,15 @@ export interface ServiceVisitDetail {
   vehicleImageUrl?: string
   vehicleImagePublicId?: string
   vehicleId?: string
+  pickupRequired?: boolean
+  pickupAddress?: string
+  pickupLocationLat?: number
+  pickupLocationLng?: number
+  pickupExecutiveId?: string
+  pickupExecutiveName?: string
+  pickupAssignedAt?: string
+  pickupCompletedAt?: string
+  pickupImages?: PickupImageRecord[]
   jobCardNumber?: string
   advisor?: string
   status: string
@@ -414,7 +471,10 @@ export interface ServiceVisitDetail {
   }>
 }
 
-export interface ServiceVisitListItem extends ServiceVisitDetail {}
+export interface ServiceVisitListItem extends ServiceVisitDetail {
+  queueStageStatus?: string
+  queueStageCompletedAt?: string
+}
 
 export interface JobCardItem {
   id: string
@@ -490,12 +550,13 @@ export interface SearchResultItem {
 }
 
 export const serviceVisitsApi = {
-  list: (token: string, params?: { search?: string; stage?: string; outstandingOnly?: boolean; page?: number }, branchId?: string) => {
+  list: (token: string, params?: { search?: string; stage?: string; outstandingOnly?: boolean; page?: number; limit?: number }, branchId?: string) => {
     const qs = new URLSearchParams()
     if (params?.search) qs.set('search', params.search)
     if (params?.stage) qs.set('stage', params.stage)
     if (params?.outstandingOnly) qs.set('outstandingOnly', 'true')
     if (params?.page) qs.set('page', String(params.page))
+    if (params?.limit) qs.set('limit', String(params.limit))
     return api<{ items: ServiceVisitListItem[]; pagination: unknown }>(`/service-visits?${qs}`, { token, branchId })
   },
 
@@ -514,6 +575,42 @@ export const serviceVisitsApi = {
       token,
       branchId,
       body: JSON.stringify({ stage }),
+    }),
+
+  assignPickupExecutive: (token: string, id: string, executiveId: string, branchId?: string) =>
+    api<ServiceVisitDetail>(`/service-visits/${id}/pickup/assign`, {
+      method: 'PATCH',
+      token,
+      branchId,
+      body: JSON.stringify({ executiveId }),
+    }),
+
+  addPickupImage: (
+    token: string,
+    id: string,
+    body: {
+      type: PickupImageType
+      url: string
+      publicId?: string
+      caption?: string
+      latitude?: number
+      longitude?: number
+      capturedAt: string
+    },
+    branchId?: string,
+  ) =>
+    api<ServiceVisitDetail>(`/service-visits/${id}/pickup/images`, {
+      method: 'POST',
+      token,
+      branchId,
+      body: JSON.stringify(body),
+    }),
+
+  completePickup: (token: string, id: string, branchId?: string) =>
+    api<ServiceVisitDetail>(`/service-visits/${id}/pickup/complete`, {
+      method: 'POST',
+      token,
+      branchId,
     }),
 }
 
@@ -604,6 +701,14 @@ export async function uploadImage(
   file: File,
   options?: { entityType?: string; entityId?: string; folder?: string },
 ): Promise<UploadResult> {
+  if (isLocalApiEnabled()) {
+    const objectUrl = URL.createObjectURL(file)
+    return localApiRequest<UploadResult>('/uploads/image', {
+      method: 'POST',
+      token,
+    }).then((result) => ({ ...result, url: objectUrl }))
+  }
+
   const formData = new FormData()
   formData.append('file', file)
   if (options?.entityType) formData.append('entityType', options.entityType)
@@ -630,6 +735,20 @@ export async function uploadInspectionPhotos(
   files: File[],
   caption?: string,
 ): Promise<UploadResult[]> {
+  if (isLocalApiEnabled()) {
+    void caption
+    return Promise.all(
+      files.map(async (file) => {
+        const objectUrl = URL.createObjectURL(file)
+        const result = await localApiRequest<UploadResult[]>(
+          `/uploads/service-visits/${serviceVisitId}/inspection`,
+          { method: 'POST', token },
+        )
+        return { ...result[0], url: objectUrl }
+      }),
+    )
+  }
+
   const formData = new FormData()
   files.forEach((f) => formData.append('files', f))
   if (caption) formData.append('caption', caption)

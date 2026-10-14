@@ -84,12 +84,12 @@ export function CustomersPage() {
                   <option value="CORPORATE">Corporate</option>
                   <option value="INSURANCE">Insurance</option>
                 </select>
-              </div>
+        </div>
               <Input label="City" value={form.city} onChange={(e) => setForm({ ...form, city: e.target.value })} />
               <div className="sm:col-span-2 flex gap-3">
                 <Button type="submit" disabled={saving}>{saving ? 'Saving...' : 'Create Customer'}</Button>
                 <Button type="button" variant="outline" onClick={() => setShowForm(false)}>Cancel</Button>
-              </div>
+      </div>
             </form>
           </CardContent>
         </Card>
@@ -143,21 +143,21 @@ export function CustomersPage() {
           </div>
 
           <Card className="hidden lg:block overflow-hidden">
-            <CardContent className="p-0">
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="border-b border-brand-border bg-brand-grey/50">
+        <CardContent className="p-0">
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-brand-border bg-brand-grey/50">
                       <th className="text-left px-5 py-3 font-medium text-brand-muted">Customer</th>
                       <th className="text-left px-3 py-3 font-medium text-brand-muted">Code</th>
                       <th className="text-left px-3 py-3 font-medium text-brand-muted">Contact</th>
-                      <th className="text-left px-3 py-3 font-medium text-brand-muted">Type</th>
-                      <th className="text-left px-3 py-3 font-medium text-brand-muted">Vehicles</th>
+                  <th className="text-left px-3 py-3 font-medium text-brand-muted">Type</th>
+                  <th className="text-left px-3 py-3 font-medium text-brand-muted">Vehicles</th>
                       <th className="text-left px-3 py-3 font-medium text-brand-muted">City</th>
-                      <th className="text-right px-5 py-3 font-medium text-brand-muted">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody>
+                  <th className="text-right px-5 py-3 font-medium text-brand-muted">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
                     {customers.map((c, i) => (
                       <tr key={c.id} className="border-b border-brand-border hover:bg-brand-yellow/5 transition-colors">
                         <td className="px-5 py-4">
@@ -176,14 +176,14 @@ export function CustomersPage() {
                         <td className="px-3 py-4 text-brand-muted">{c.city ?? '—'}</td>
                         <td className="px-5 py-4 text-right">
                           <Button variant="ghost" size="sm" asChild><Link to={`/app/crm/customers/${c.id}`}>View</Link></Button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </CardContent>
-          </Card>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </CardContent>
+      </Card>
         </>
       )}
     </div>

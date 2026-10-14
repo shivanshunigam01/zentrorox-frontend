@@ -69,7 +69,7 @@ export function LoginPage() {
       if (result.user.defaultBranchId) authStorage.setBranchId(result.user.defaultBranchId)
       navigate('/app/dashboard')
     } catch (err) {
-      setApiError(err instanceof Error ? err.message : 'Login failed. Is the backend running?')
+      setApiError(err instanceof Error ? err.message : 'Login failed')
     } finally {
       setLoading(false)
     }

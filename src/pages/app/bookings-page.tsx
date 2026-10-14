@@ -1,16 +1,16 @@
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Calendar, Plus, Car, User, Play, Printer, X, Pencil } from 'lucide-react'
+import { Calendar, Plus, Car, User, Play, Printer, X, Pencil, MapPin, Truck } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { PageBanner } from '@/components/ui/page-banner'
 import { Badge } from '@/components/ui/badge'
 import { MasterSelect } from '@/components/ui/master-select'
 import { Input } from '@/components/ui/input'
-import { VehiclePhotoCapture } from '@/components/ui/vehicle-photo-capture'
 import { PrintableBookingSlip } from '@/components/documents/printable-booking-slip'
 import { bookingsApi, customersApi, vehiclesApi, type BookingItem, type BookingDetail, type CustomerItem, type VehicleItem } from '@/lib/api'
 import { authStorage } from '@/lib/auth-storage'
+import { captureGeoLocation } from '@/lib/geolocation'
 
 const BOOKING_STATUSES = ['BOOKED', 'CONFIRMED', 'RESCHEDULED', 'CANCELLED', 'ARRIVED', 'NO_SHOW'] as const
 
@@ -26,8 +26,10 @@ const emptyForm = {
   remarks: '',
   engineNo: '',
   chassisNo: '',
-  vehicleImageUrl: '',
-  vehicleImagePublicId: '',
+  pickupRequired: false,
+  pickupAddress: '',
+  pickupLocationLat: undefined as number | undefined,
+  pickupLocationLng: undefined as number | undefined,
 }
 
 export function BookingsPage() {
@@ -45,6 +47,7 @@ export function BookingsPage() {
   const printRef = useRef<HTMLDivElement>(null)
   const [loadingPrint, setLoadingPrint] = useState<string | null>(null)
   const [form, setForm] = useState(emptyForm)
+  const [capturingLocation, setCapturingLocation] = useState(false)
 
   const token = authStorage.getToken()
   const branchId = authStorage.getBranchId() ?? undefined
@@ -82,8 +85,6 @@ export function BookingsPage() {
       ...prev,
       engineNo: prev.engineNo || selected.engineNo || '',
       chassisNo: prev.chassisNo || selected.chassisNo || selected.vin || '',
-      vehicleImageUrl: prev.vehicleImageUrl || selected.imageUrl || '',
-      vehicleImagePublicId: prev.vehicleImagePublicId || selected.imagePublicId || '',
     }))
   }, [form.vehicleId, vehicles])
 
@@ -119,8 +120,10 @@ export function BookingsPage() {
         remarks: detail.remarks ?? '',
         engineNo: detail.vehicle?.engineNo ?? '',
         chassisNo: detail.vehicle?.chassisNo ?? detail.vehicle?.vin ?? '',
-        vehicleImageUrl: detail.vehicle?.imageUrl ?? '',
-        vehicleImagePublicId: detail.vehicle?.imagePublicId ?? '',
+        pickupRequired: detail.pickupRequired ?? false,
+        pickupAddress: detail.pickupAddress ?? '',
+        pickupLocationLat: detail.pickupLocationLat,
+        pickupLocationLng: detail.pickupLocationLng,
       })
       setShowForm(true)
     } finally {
@@ -162,8 +165,12 @@ export function BookingsPage() {
       const vehiclePayload = {
         engineNo: form.engineNo || undefined,
         chassisNo: form.chassisNo || undefined,
-        vehicleImageUrl: form.vehicleImageUrl || undefined,
-        vehicleImagePublicId: form.vehicleImagePublicId || undefined,
+      }
+      const pickupPayload = {
+        pickupRequired: form.pickupRequired,
+        pickupAddress: form.pickupRequired ? form.pickupAddress || undefined : undefined,
+        pickupLocationLat: form.pickupRequired ? form.pickupLocationLat : undefined,
+        pickupLocationLng: form.pickupRequired ? form.pickupLocationLng : undefined,
       }
 
       if (editingId) {
@@ -178,6 +185,7 @@ export function BookingsPage() {
           status: form.status,
           remarks: form.remarks,
           ...vehiclePayload,
+          ...pickupPayload,
         }, branchId)
         resetForm()
         await load()
@@ -193,6 +201,7 @@ export function BookingsPage() {
           customerComplaint: form.customerComplaint,
           remarks: form.remarks,
           ...vehiclePayload,
+          ...pickupPayload,
         }, branchId)
         resetForm()
         await load()
@@ -204,6 +213,22 @@ export function BookingsPage() {
   }
 
   const canEdit = (status: string) => status !== 'ARRIVED' && status !== 'CANCELLED'
+
+  const capturePickupLocation = async () => {
+    setCapturingLocation(true)
+    try {
+      const geo = await captureGeoLocation()
+      if (geo) {
+        setForm((prev) => ({
+          ...prev,
+          pickupLocationLat: geo.latitude,
+          pickupLocationLng: geo.longitude,
+        }))
+      }
+    } finally {
+      setCapturingLocation(false)
+    }
+  }
 
   return (
     <div className="space-y-6">
@@ -254,8 +279,6 @@ export function BookingsPage() {
                     vehicleId: e.target.value,
                     engineNo: '',
                     chassisNo: '',
-                    vehicleImageUrl: '',
-                    vehicleImagePublicId: '',
                   })}
                   disabled={!form.customerId}
                   className="flex h-10 w-full rounded-lg border border-brand-border px-3 text-sm disabled:opacity-50"
@@ -277,20 +300,6 @@ export function BookingsPage() {
                 placeholder="e.g. MAHFR2WK5K1234567"
                 value={form.chassisNo}
                 onChange={(e) => setForm({ ...form, chassisNo: e.target.value })}
-              />
-              <VehiclePhotoCapture
-                imageUrl={form.vehicleImageUrl || undefined}
-                entityId={form.vehicleId || undefined}
-                onUploaded={({ url, publicId }) => setForm({
-                  ...form,
-                  vehicleImageUrl: url,
-                  vehicleImagePublicId: publicId,
-                })}
-                onCleared={() => setForm({
-                  ...form,
-                  vehicleImageUrl: '',
-                  vehicleImagePublicId: '',
-                })}
               />
               <MasterSelect
                 category="SERVICE_TYPE"
@@ -337,6 +346,66 @@ export function BookingsPage() {
                   </select>
                 </div>
               )}
+              <div className="space-y-1.5 sm:col-span-2 rounded-xl border border-brand-border bg-brand-grey/30 p-4">
+                <label className="text-sm font-medium flex items-center gap-2">
+                  <Truck className="h-4 w-4 text-brand-yellow" />
+                  Pickup Request
+                </label>
+                <p className="text-xs text-brand-muted">
+                  Choose Yes if our executive should pick up the vehicle from a location. Choose No for normal gate arrival by the vehicle owner.
+                </p>
+                <div className="flex flex-wrap gap-4 mt-2">
+                  <label className="flex items-center gap-2 text-sm cursor-pointer">
+                    <input
+                      type="radio"
+                      name="pickupRequired"
+                      checked={!form.pickupRequired}
+                      onChange={() => setForm({
+                        ...form,
+                        pickupRequired: false,
+                        pickupAddress: '',
+                        pickupLocationLat: undefined,
+                        pickupLocationLng: undefined,
+                      })}
+                    />
+                    No — Gate arrival
+                  </label>
+                  <label className="flex items-center gap-2 text-sm cursor-pointer">
+                    <input
+                      type="radio"
+                      name="pickupRequired"
+                      checked={form.pickupRequired}
+                      onChange={() => setForm({ ...form, pickupRequired: true })}
+                    />
+                    Yes — Pickup from location
+                  </label>
+                </div>
+                {form.pickupRequired && (
+                  <div className="mt-3 space-y-3">
+                    <div className="space-y-1.5">
+                      <label className="text-sm font-medium">Pickup Address *</label>
+                      <textarea
+                        required
+                        className="flex w-full rounded-lg border border-brand-border px-3 py-2 text-sm min-h-[72px]"
+                        placeholder="Full address where the vehicle will be picked up..."
+                        value={form.pickupAddress}
+                        onChange={(e) => setForm({ ...form, pickupAddress: e.target.value })}
+                      />
+                    </div>
+                    <div className="flex flex-wrap items-center gap-3">
+                      <Button type="button" variant="outline" size="sm" disabled={capturingLocation} onClick={capturePickupLocation}>
+                        <MapPin className="h-3.5 w-3.5" />
+                        {capturingLocation ? 'Getting location...' : 'Capture GPS Coordinates'}
+                      </Button>
+                      {(form.pickupLocationLat != null && form.pickupLocationLng != null) && (
+                        <span className="text-xs text-brand-muted">
+                          {form.pickupLocationLat.toFixed(5)}, {form.pickupLocationLng.toFixed(5)}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
               <div className="space-y-1.5 sm:col-span-2">
                 <label className="text-sm font-medium">Customer Complaint</label>
                 <textarea
@@ -399,7 +468,10 @@ export function BookingsPage() {
                         <span className="truncate">{b.vehicle?.registrationNo ?? '—'}</span>
                       </p>
                     </div>
-                    <Badge className="shrink-0">{b.status}</Badge>
+                    <div className="flex flex-col items-end gap-1 shrink-0">
+                      <Badge>{b.status}</Badge>
+                      {b.pickupRequired && <Badge variant="info" className="text-[10px]">Pickup</Badge>}
+                    </div>
                   </div>
                   <div className="grid grid-cols-2 gap-2 text-sm">
                     <div>
@@ -459,7 +531,12 @@ export function BookingsPage() {
                         </td>
                         <td className="px-3 py-3">{b.serviceType ?? '—'}</td>
                         <td className="px-3 py-3">{b.preferredSlot ?? '—'}</td>
-                        <td className="px-3 py-3"><Badge>{b.status}</Badge></td>
+                        <td className="px-3 py-3">
+                          <div className="flex flex-wrap items-center gap-1">
+                            <Badge>{b.status}</Badge>
+                            {b.pickupRequired && <Badge variant="info">Pickup</Badge>}
+                          </div>
+                        </td>
                         <td className="px-5 py-3 text-right">
                           <div className="flex items-center justify-end gap-1">
                             {canEdit(b.status) && (

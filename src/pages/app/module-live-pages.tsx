@@ -4,6 +4,7 @@ import {
   jobCardsApi, partsApi, baysApi, usersApi, branchesApi,
   serviceVisitsApi, dashboardApi,
 } from '@/lib/api'
+import { STAGE_UI_PATHS } from '@/lib/stage-paths'
 import { Badge } from '@/components/ui/badge'
 import { formatCurrency } from '@/lib/utils'
 
@@ -11,23 +12,54 @@ export function JobCardsLivePage() {
   return (
     <LiveTablePage
       title="Job Cards"
-      description="Live job cards linked to service visits"
+      description="All vehicles that have reached or completed the job card stage"
       icon={Wrench}
       gradient="from-brand-charcoal to-brand-charcoal-light"
       emoji="🔧"
       columns={[
+        { key: 'visitNumber', label: 'Visit #' },
         { key: 'jobCardNumber', label: 'Job Card #' },
-        { key: 'registration', label: 'Registration' },
-        { key: 'customer', label: 'Customer' },
-        { key: 'bay', label: 'Bay' },
-        { key: 'status', label: 'Status' },
-        { key: 'currentValue', label: 'Value', render: (v) => formatCurrency(Number(v ?? 0)) },
+        { key: 'registrationNumber', label: 'Registration' },
+        { key: 'customerName', label: 'Customer' },
+        {
+          key: 'queueStageStatus',
+          label: 'Phase Status',
+          render: (value) => {
+            const status = String(value ?? '').toUpperCase()
+            if (status === 'CURRENT') return <Badge variant="warning">At Stage</Badge>
+            if (status === 'COMPLETED') return <Badge variant="success">Completed</Badge>
+            return <Badge>{status || '—'}</Badge>
+          },
+        },
+        { key: 'currentStage', label: 'Current Stage' },
+        { key: 'status', label: 'Visit Status' },
       ]}
       loadRows={async (token, branchId, search) => {
-        const res = await jobCardsApi.list(token, { search }, branchId)
-        return res.items as unknown as Record<string, unknown>[]
+        const [visits, jobCards] = await Promise.all([
+          serviceVisitsApi.list(token, { stage: 'JOB_CARD', search, limit: 100 }, branchId),
+          jobCardsApi.list(token, { search }, branchId),
+        ])
+        const jcByVisit = new Map(
+          jobCards.items.map((jc) => [String(jc.visitId ?? ''), jc]),
+        )
+        return visits.items.map((visit) => {
+          const jc = jcByVisit.get(visit.id)
+          return {
+            ...visit,
+            jobCardNumber: jc?.jobCardNumber ?? visit.jobCardNumber ?? '—',
+            currentValue: jc?.currentValue,
+          }
+        }) as unknown as Record<string, unknown>[]
       }}
-      getViewLink={(row) => row.visitId ? `/app/service-visits/${row.visitId}/job-card` : null}
+      getViewLink={(row) => {
+        const queueStatus = String(row.queueStageStatus ?? '').toUpperCase()
+        const currentStage = String(row.currentStage ?? 'JOB_CARD') as keyof typeof STAGE_UI_PATHS
+        const path = queueStatus === 'COMPLETED'
+          ? (STAGE_UI_PATHS[currentStage] ?? 'job-card')
+          : 'job-card'
+        return `/app/service-visits/${row.id}/${path}`
+      }}
+      refreshOnFocus
     />
   )
 }
@@ -171,10 +203,15 @@ export function WorkshopFloorLivePage() {
         { key: 'status', label: 'Status' },
       ]}
       loadRows={async (token, branchId, search) => {
-        const res = await serviceVisitsApi.list(token, { search, page: 1 }, branchId)
+        const res = await serviceVisitsApi.list(token, { search, page: 1, limit: 100 }, branchId)
         return res.items as unknown as Record<string, unknown>[]
       }}
-      getViewLink={(row) => `/app/service-visits/${row.id}/wip`}
+      getViewLink={(row) => {
+        const currentStage = String(row.currentStage ?? 'WIP') as keyof typeof STAGE_UI_PATHS
+        const path = STAGE_UI_PATHS[currentStage] ?? 'wip'
+        return `/app/service-visits/${row.id}/${path}`
+      }}
+      refreshOnFocus
     />
   )
 }

@@ -14,13 +14,18 @@ Automotive Workshop ERP — React + TypeScript + Vite frontend.
 - **Radix UI** primitives for accessible components
 - **Lucide React** for icons
 
-## Getting Started
+## Getting Started (frontend-only on localhost)
+
+No backend is required for day-to-day UI testing. The app runs in **local API mode**: login, dashboard, workshop flows, and CRUD-style actions use **browser `localStorage`** (`zs_local_db_v1`).
 
 ```bash
 # Install dependencies
 npm install
 
-# Start development server
+# Copy env (local mode is the default in .env.example)
+copy .env.example .env
+
+# Start development server → http://localhost:5173
 npm run dev
 
 # Build for production
@@ -29,6 +34,13 @@ npm run build
 # Preview production build
 npm run preview
 ```
+
+| Variable | Purpose |
+|----------|---------|
+| `VITE_USE_LOCAL_API=true` | All API calls stay in the browser (default for testing) |
+| `VITE_USE_LOCAL_API=false` | Use a real API at `VITE_API_BASE_URL` when the backend is ready |
+
+To reset demo data: DevTools → Application → Local Storage → delete `zs_local_db_v1` and sign in again.
 
 ## Project Structure
 
@@ -77,8 +89,11 @@ src/
 | Text | `#202124` |
 | Font | Poppins |
 
-## Backend Integration
+## Backend Integration (later)
 
-Copy `.env.example` to `.env` and set `VITE_API_BASE_URL` when the Node.js backend is ready.
+When the Node.js API is ready:
 
-Mock data in `src/lib/mock-data.ts` will be replaced with TanStack Query hooks calling the REST API.
+1. Set `VITE_USE_LOCAL_API=false` in `.env`
+2. Set `VITE_API_BASE_URL` (e.g. `http://localhost:3000/api/v1`)
+
+Until then, `src/lib/local-api.ts` and `src/lib/local-db.ts` implement the same routes against seeded data in `src/lib/mock-data.ts`.

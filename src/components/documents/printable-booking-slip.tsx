@@ -65,12 +65,6 @@ export function PrintableBookingSlip({ booking }: PrintableBookingSlipProps) {
             <InfoRow label="Engine No." value={booking.vehicle?.engineNo} />
             <InfoRow label="Fuel Type" value={booking.vehicle?.fuelType} />
             <InfoRow label="Odometer" value={booking.vehicle?.odometer ? `${booking.vehicle.odometer.toLocaleString()} km` : undefined} />
-            {booking.vehicle?.imageUrl && (
-              <div className="mt-2 pt-2 border-t border-brand-border">
-                <p className="text-[10px] font-bold uppercase text-brand-muted mb-1">Vehicle Photo</p>
-                <img src={booking.vehicle.imageUrl} alt="Vehicle" className="h-20 w-28 object-cover rounded border border-brand-border" />
-              </div>
-            )}
           </div>
         </div>
 
@@ -83,7 +77,7 @@ export function PrintableBookingSlip({ booking }: PrintableBookingSlipProps) {
             <InfoRow label="Preferred Slot" value={booking.preferredSlot ?? 'To be confirmed'} />
             <InfoRow label="Status" value={formatCodeLabel(booking.status)} />
             <InfoRow label="Service Advisor" value={advisorName} />
-            <InfoRow label="Pickup Required" value={booking.pickupRequired ? 'Yes' : 'No'} />
+            <InfoRow label="Pickup Request" value={booking.pickupRequired ? 'Yes' : 'No'} />
             {booking.pickupRequired && <InfoRow label="Pickup Address" value={booking.pickupAddress} />}
           </div>
           {booking.customerComplaint && (

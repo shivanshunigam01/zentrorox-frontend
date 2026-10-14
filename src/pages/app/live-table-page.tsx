@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Search } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
@@ -25,6 +25,7 @@ interface LiveTablePageProps {
   loadRows: (token: string, branchId: string | undefined, search: string) => Promise<Record<string, unknown>[]>
   getViewLink?: (row: Record<string, unknown>) => string | null
   stats?: Array<{ label: string; value: string | number }>
+  refreshOnFocus?: boolean
 }
 
 export function LiveTablePage({
@@ -37,11 +38,14 @@ export function LiveTablePage({
   loadRows,
   getViewLink,
   stats,
+  refreshOnFocus = false,
 }: LiveTablePageProps) {
   const [rows, setRows] = useState<Record<string, unknown>[]>([])
   const [search, setSearch] = useState('')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const searchRef = useRef(search)
+  searchRef.current = search
 
   const fetchData = async (q = search) => {
     const token = authStorage.getToken()
@@ -58,7 +62,14 @@ export function LiveTablePage({
     }
   }
 
-  useEffect(() => { fetchData('') }, [])
+  useEffect(() => {
+    fetchData('')
+    if (!refreshOnFocus) return
+
+    const handleFocus = () => { fetchData(searchRef.current) }
+    window.addEventListener('focus', handleFocus)
+    return () => window.removeEventListener('focus', handleFocus)
+  }, [refreshOnFocus])
 
   return (
     <div className="space-y-6">
