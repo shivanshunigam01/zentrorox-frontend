@@ -1,11 +1,17 @@
 import { useEffect } from 'react'
-import { Outlet } from 'react-router-dom'
+import { Outlet, useLocation } from 'react-router-dom'
 import { Sidebar } from './sidebar'
 import { TopBar } from './topbar'
 import { SidebarProvider, useSidebar } from './sidebar-context'
 
 function AppShellContent() {
   const { isOpen, close } = useSidebar()
+  const location = useLocation()
+
+  useEffect(() => {
+    close()
+    window.scrollTo(0, 0)
+  }, [location.pathname, close])
 
   useEffect(() => {
     document.body.style.overflow = isOpen ? 'hidden' : ''
@@ -40,8 +46,8 @@ function AppShellContent() {
       <Sidebar />
       <div className="relative lg:pl-64">
         <TopBar />
-        <main className="p-4 sm:p-6">
-          <Outlet />
+        <main className="p-4 sm:p-6 min-h-[calc(100vh-4rem)]">
+          <Outlet key={location.pathname} />
         </main>
       </div>
     </div>

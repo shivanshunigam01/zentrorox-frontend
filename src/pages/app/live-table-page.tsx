@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useLocation } from 'react-router-dom'
 import { Search } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -40,6 +40,7 @@ export function LiveTablePage({
   stats,
   refreshOnFocus = false,
 }: LiveTablePageProps) {
+  const location = useLocation()
   const [rows, setRows] = useState<Record<string, unknown>[]>([])
   const [search, setSearch] = useState('')
   const [loading, setLoading] = useState(true)
@@ -63,13 +64,14 @@ export function LiveTablePage({
   }
 
   useEffect(() => {
+    setSearch('')
     fetchData('')
     if (!refreshOnFocus) return
 
     const handleFocus = () => { fetchData(searchRef.current) }
     window.addEventListener('focus', handleFocus)
     return () => window.removeEventListener('focus', handleFocus)
-  }, [refreshOnFocus])
+  }, [location.pathname, title, refreshOnFocus])
 
   return (
     <div className="space-y-6">
@@ -110,7 +112,7 @@ export function LiveTablePage({
           <EmptyState
             icon={icon}
             title="No records found"
-            description={`No ${title.toLowerCase()} match your filters. Data loads live from the backend.`}
+            description={`No ${title.toLowerCase()} match your filters. Try another menu or clear your search.`}
           />
         </Card>
       ) : (

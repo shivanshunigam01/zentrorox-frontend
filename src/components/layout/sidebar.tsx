@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { NavLink, useLocation } from 'react-router-dom'
 import {
   LayoutDashboard, Wrench, Package, ShoppingCart, Receipt, Users,
@@ -27,10 +27,14 @@ function NavLinkItem({
   onNavigate?: () => void
 }) {
   const location = useLocation()
-  const [open, setOpen] = useState(() => {
-    if (!item.children) return false
-    return item.children.some((child) => child.path && location.pathname.startsWith(child.path))
-  })
+  const childActive = Boolean(
+    item.children?.some((child) => child.path && location.pathname.startsWith(child.path)),
+  )
+  const [open, setOpen] = useState(childActive)
+
+  useEffect(() => {
+    if (item.children && childActive) setOpen(true)
+  }, [childActive, item.children])
 
   const Icon = item.icon ? iconMap[item.icon] : null
 
@@ -62,6 +66,7 @@ function NavLinkItem({
   return (
     <NavLink
       to={item.path!}
+      end
       onClick={onNavigate}
       className={({ isActive }) =>
         cn(

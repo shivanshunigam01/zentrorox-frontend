@@ -53,7 +53,8 @@ export function StageQueuePage({ stage, title, description }: StageQueuePageProp
       getViewLink={(row) => {
         const queueStatus = String(row.queueStageStatus ?? '').toUpperCase()
         const currentStage = String(row.currentStage ?? '')
-        const currentPath = STAGE_UI_PATHS[currentStage as keyof typeof STAGE_UI_PATHS]
+        const currentPath =
+          STAGE_UI_PATHS[currentStage as keyof typeof STAGE_UI_PATHS] ?? currentStage
         const stagePath = STAGE_UI_PATHS[stage]
         const path = queueStatus === 'COMPLETED' && currentPath ? currentPath : stagePath
         return `/app/service-visits/${row.id}/${path}`
