@@ -2,8 +2,7 @@ import { authStorage } from './auth-storage'
 import { isLocalApiEnabled } from './local-mode'
 import { localApiRequest } from './local-api'
 
-const API_BASE =
-  import.meta.env.VITE_API_BASE_URL ?? 'https://zentrorox.zentroverse.com/api/v1'
+const API_BASE = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:3000/api/v1'
 
 interface ApiOptions extends RequestInit {
   token?: string
@@ -89,6 +88,10 @@ async function fetchWithAuth(
   endpoint: string,
   options: ApiOptions = {},
 ): Promise<Response> {
+  if (isLocalApiEnabled()) {
+    throw new Error('fetchWithAuth must not run in local API mode')
+  }
+
   const { token, branchId, headers, _retry, ...rest } = options
   const authToken = token ?? authStorage.getToken() ?? undefined
   const jsonBody = !(rest.body instanceof FormData)

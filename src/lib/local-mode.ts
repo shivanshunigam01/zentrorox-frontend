@@ -1,7 +1,7 @@
-/** When true, all API calls are served from browser cache (localStorage) — no backend. */
+/**
+ * Frontend-only mode: all data from localStorage unless you explicitly set
+ * VITE_USE_LOCAL_API=false when wiring a real backend later.
+ */
 export function isLocalApiEnabled(): boolean {
-  const flag = import.meta.env.VITE_USE_LOCAL_API
-  if (flag === 'false') return false
-  if (flag === 'true') return true
-  return import.meta.env.DEV
+  return import.meta.env.VITE_USE_LOCAL_API !== 'false'
 }
