@@ -14,5 +14,13 @@ export default defineConfig({
   server: {
     port: 5173,
     open: true,
+    proxy: {
+      // Used when VITE_API_BASE_URL=/api/v1 — avoids CORS; target is local Backend only.
+      '/api/v1': {
+        target: 'http://localhost:3000',
+        changeOrigin: true,
+        secure: false,
+      },
+    },
   },
 })

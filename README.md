@@ -89,11 +89,21 @@ src/
 | Text | `#202124` |
 | Font | Poppins |
 
-## Backend Integration (later)
+## Connect local Backend (your machine only)
 
-When the Node.js API is ready:
+Committed repos stay in **demo mode** by default. To use the real API locally:
 
-1. Set `VITE_USE_LOCAL_API=false` in `.env`
-2. Set `VITE_API_BASE_URL` (e.g. `http://localhost:3000/api/v1`)
+```bash
+cp .env.local.example .env.local
+```
 
-Until then, `src/lib/local-api.ts` and `src/lib/local-db.ts` implement the same routes against seeded data in `src/lib/mock-data.ts`.
+`.env.local` is **gitignored** — never pushed.
+
+```env
+VITE_USE_LOCAL_API=false
+VITE_API_BASE_URL=/api/v1
+```
+
+Start [Backend](../Backend) (`docker compose up -d`, `npm run db:seed`, `npm run dev`), then `npm run dev` here.
+
+See Backend [LOCAL_FULL_STACK.md](../Backend/docs/LOCAL_FULL_STACK.md).
