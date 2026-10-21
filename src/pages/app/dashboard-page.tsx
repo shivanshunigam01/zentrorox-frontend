@@ -14,6 +14,7 @@ import { Button } from '@/components/ui/button'
 import { dashboardApi, type DashboardData } from '@/lib/api'
 import { authStorage } from '@/lib/auth-storage'
 import { IMAGES, AVATARS } from '@/lib/assets'
+import { WorkshopJourneyGuide } from '@/components/workshop/workshop-journey-guide'
 
 const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
   Car, Calendar, Wrench, Clock, Package, CheckCircle, Truck, IndianRupee,
@@ -99,6 +100,8 @@ export function DashboardPage() {
           </Button>
         </div>
       </div>
+
+      <WorkshopJourneyGuide stepId="booking" />
 
       {/* KPI Grid */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">

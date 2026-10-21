@@ -3,6 +3,8 @@ import { Outlet, useLocation } from 'react-router-dom'
 import { Sidebar } from './sidebar'
 import { TopBar } from './topbar'
 import { SidebarProvider, useSidebar } from './sidebar-context'
+import { WorkshopJourneyGuide } from '@/components/workshop/workshop-journey-guide'
+import { getWorkshopJourneyStepForPath } from '@/lib/workshop-journey'
 
 function AppShellContent() {
   const { isOpen, close } = useSidebar()
@@ -47,6 +49,14 @@ function AppShellContent() {
       <div className="relative lg:pl-64">
         <TopBar />
         <main className="p-4 sm:p-6 min-h-[calc(100vh-4rem)]">
+          {(() => {
+            const journey = getWorkshopJourneyStepForPath(location.pathname)
+            return journey ? (
+              <div className="mb-4">
+                <WorkshopJourneyGuide stepId={journey.id} />
+              </div>
+            ) : null
+          })()}
           <Outlet key={location.pathname} />
         </main>
       </div>

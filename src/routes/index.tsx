@@ -1,4 +1,4 @@
-import { Routes, Route, Navigate } from 'react-router-dom'
+import { Routes, Route, Navigate, useParams } from 'react-router-dom'
 import { PublicLayout } from '@/components/layout/public-layout'
 import { AppShell } from '@/components/layout/app-shell'
 import { RequireAuth } from '@/components/auth/require-auth'
@@ -11,16 +11,30 @@ import { VehiclesPage } from '@/pages/app/vehicles-page'
 import { BookingsPage } from '@/pages/app/bookings-page'
 import { MastersPage } from '@/pages/app/masters-page'
 import { ServiceVisitPage } from '@/pages/app/service-visit-page'
-import { WipPage } from '@/pages/app/wip-page'
+import { WipManagementPage } from '@/pages/app/wip-management-page'
+import { QcManagementPage } from '@/pages/app/qc-management-page'
 import { StageQueuePage } from '@/pages/app/stage-queue-page'
 import {
   JobCardsLivePage, PartsMasterLivePage, PartsStockLivePage, PartsDashboardLivePage,
-  BayBoardLivePage, TechnicianBoardLivePage, WorkshopFloorLivePage,
   PurchaseRequisitionLivePage, OutstandingLivePage,
-  AdminLivePage, SettingsLivePage, BillingInvoicesLivePage, BillingReceiptsLivePage,
+  AdminLivePage, SettingsLivePage, BillingReceiptsLivePage,
   GenericPartsModulePage, GenericPurchaseModulePage,
 } from '@/pages/app/module-live-pages'
 import { ReportsPage } from '@/pages/app/reports-page'
+import { PickupOperationsPage } from '@/pages/app/pickup-operations-page'
+import { VehicleReceivingWorkspacePage } from '@/pages/app/vehicle-receiving-workspace-page'
+import { ServiceVisitReceivingWorkspacePage } from '@/pages/app/service-visit-receiving-workspace-page'
+import { TrialInspectionDashboardPage } from '@/pages/app/trial-inspection-dashboard-page'
+import { TrialInspectionWorkspacePage } from '@/pages/app/trial-inspection-workspace-page'
+import { EstimateManagementPage } from '@/pages/app/estimate-management-page'
+import { ApprovalManagementPage } from '@/pages/app/approval-management-page'
+import { JobCardManagementPage } from '@/pages/app/job-card-management-page'
+import { BillingDeliveryPage } from '@/pages/app/billing-delivery-page'
+
+function LegacyInspectionCaseRedirect() {
+  const { caseId } = useParams<{ caseId: string }>()
+  return <Navigate to={`/app/workshop/inspection/${caseId ?? ''}`} replace />
+}
 
 export function AppRoutes() {
   return (
@@ -34,25 +48,42 @@ export function AppRoutes() {
         <Route index element={<Navigate to="/app/dashboard" replace />} />
         <Route path="dashboard" element={<DashboardPage />} />
 
+        <Route path="service-visits/:visitId/receiving" element={<ServiceVisitReceivingWorkspacePage />} />
         <Route path="service-visits/:visitId/:stage" element={<ServiceVisitPage />} />
 
         <Route path="workshop/bookings" element={<BookingsPage />} />
-        <Route path="workshop/pickup" element={<StageQueuePage stage="PICKUP" title="Pickup" description="Vehicles scheduled for pickup — live from service visits" />} />
+        <Route path="workshop/booking-pickup" element={<BookingsPage />} />
+        <Route path="workshop/pickup" element={<PickupOperationsPage />} />
+        <Route path="workshop/receiving-hub" element={<VehicleReceivingWorkspacePage />} />
         <Route path="workshop/gate-in" element={<StageQueuePage stage="ARRIVAL" title="Gate-In" description="Vehicles awaiting gate entry" />} />
         <Route path="workshop/receiving" element={<StageQueuePage stage="INVENTORY" title="Vehicle Receiving" description="Vehicles in receiving inventory stage" />} />
-        <Route path="workshop/voc" element={<StageQueuePage stage="VOC" title="Voice of Customer" description="Vehicles awaiting VOC capture" />} />
-        <Route path="workshop/inspection" element={<StageQueuePage stage="INSPECTION" title="Inspection" description="Vehicles in inspection stage" />} />
-        <Route path="workshop/diagnosis" element={<StageQueuePage stage="DIAGNOSIS" title="Diagnosis" description="Vehicles in diagnosis stage" />} />
-        <Route path="workshop/estimates" element={<StageQueuePage stage="ESTIMATE" title="Estimates" description="Vehicles awaiting estimate" />} />
-        <Route path="workshop/approvals" element={<StageQueuePage stage="APPROVAL" title="Approvals" description="Estimates pending customer approval" />} />
-        <Route path="workshop/job-cards" element={<JobCardsLivePage />} />
-        <Route path="workshop/floor" element={<WorkshopFloorLivePage />} />
-        <Route path="workshop/bay-board" element={<BayBoardLivePage />} />
-        <Route path="workshop/technician-board" element={<TechnicianBoardLivePage />} />
-        <Route path="workshop/wip" element={<WipPage />} />
-        <Route path="workshop/qc" element={<StageQueuePage stage="QC" title="Quality Check" description="Vehicles in QC stage" />} />
-        <Route path="workshop/road-test" element={<StageQueuePage stage="ROAD_TEST" title="Road Test" description="Vehicles in road test stage" />} />
-        <Route path="workshop/delivery" element={<StageQueuePage stage="DELIVERY" title="Delivery" description="Vehicles ready for delivery" />} />
+        <Route path="workshop/inspection" element={<TrialInspectionDashboardPage />} />
+        <Route path="workshop/inspection/:caseId" element={<TrialInspectionWorkspacePage />} />
+        <Route path="workshop/trial-inspection" element={<Navigate to="/app/workshop/inspection" replace />} />
+        <Route path="workshop/trial-inspection/:caseId" element={<LegacyInspectionCaseRedirect />} />
+        <Route path="workshop/voc" element={<Navigate to="/app/workshop/inspection" replace />} />
+        <Route path="workshop/diagnosis" element={<Navigate to="/app/workshop/inspection" replace />} />
+        <Route path="workshop/estimates" element={<EstimateManagementPage />} />
+        <Route path="workshop/estimates/:estimateId" element={<EstimateManagementPage />} />
+        <Route path="workshop/approvals" element={<ApprovalManagementPage />} />
+        <Route path="workshop/approvals/:visitId" element={<ApprovalManagementPage />} />
+        <Route path="workshop/job-cards" element={<JobCardManagementPage />} />
+        <Route path="workshop/job-cards/:jobCardId" element={<JobCardManagementPage />} />
+        <Route path="workshop/job-cards-legacy" element={<JobCardsLivePage />} />
+        <Route path="workshop/floor" element={<Navigate to="/app/workshop/wip?view=floor" replace />} />
+        <Route path="workshop/bay-board" element={<Navigate to="/app/workshop/wip?view=bay" replace />} />
+        <Route path="workshop/technician-board" element={<Navigate to="/app/workshop/wip?view=technician" replace />} />
+        <Route path="workshop/wip" element={<WipManagementPage />} />
+        <Route path="workshop/wip/:jobCardId" element={<WipManagementPage />} />
+        <Route path="workshop/qc" element={<QcManagementPage />} />
+        <Route path="workshop/qc/:qcCaseId" element={<QcManagementPage />} />
+        <Route path="workshop/road-test" element={<Navigate to="/app/workshop/qc" replace />} />
+        <Route path="workshop/quality-check" element={<Navigate to="/app/workshop/qc" replace />} />
+        <Route path="workshop/quantity-check" element={<Navigate to="/app/workshop/qc" replace />} />
+        <Route path="workshop/quantity-verification" element={<Navigate to="/app/workshop/qc" replace />} />
+        <Route path="workshop/billing-delivery" element={<BillingDeliveryPage />} />
+        <Route path="workshop/billing-delivery/:visitId" element={<BillingDeliveryPage />} />
+        <Route path="workshop/delivery" element={<Navigate to="/app/workshop/billing-delivery" replace />} />
 
         <Route path="parts/dashboard" element={<PartsDashboardLivePage />} />
         <Route path="parts/master" element={<PartsMasterLivePage />} />
@@ -72,11 +103,11 @@ export function AppRoutes() {
         <Route path="purchase/return" element={<GenericPurchaseModulePage title="Purchase Return" description="Return tracking linked to parts master" />} />
         <Route path="purchase/vendors" element={<PartsMasterLivePage />} />
 
-        <Route path="billing/invoice" element={<BillingInvoicesLivePage />} />
+        <Route path="billing/invoice" element={<Navigate to="/app/workshop/billing-delivery" replace />} />
         <Route path="billing/receipts" element={<BillingReceiptsLivePage />} />
         <Route path="billing/credit-notes" element={<OutstandingLivePage />} />
         <Route path="billing/outstanding" element={<OutstandingLivePage />} />
-        <Route path="billing/gatepass" element={<StageQueuePage stage="GATEPASS" title="Gatepass" description="Vehicles awaiting gatepass authorization" />} />
+        <Route path="billing/gatepass" element={<Navigate to="/app/workshop/billing-delivery" replace />} />
 
         <Route path="crm/customers" element={<CustomersPage />} />
         <Route path="crm/customers/:id" element={<CustomerDetailPage />} />

@@ -9,6 +9,8 @@ export interface StoredUser {
   firstName: string
   lastName: string | null
   role: string | null
+  roleCode?: string | null
+  permissions?: string[]
   tenant: { id: string; code: string; name: string }
   branches: { id: string; name: string; code: string }[]
   defaultBranchId: string | null

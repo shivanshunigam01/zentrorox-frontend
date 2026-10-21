@@ -1,8 +1,10 @@
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Calendar, Plus, Car, User, Play, Printer, X, Pencil, MapPin, Truck } from 'lucide-react'
+import { Calendar, Plus, Car, User, Play, Printer, Pencil, MapPin, Truck } from 'lucide-react'
+import { ModuleFormDialog } from '@/components/ui/module-form-dialog'
+import { PaginationBar, type PaginationMeta } from '@/components/ui/pagination-bar'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent } from '@/components/ui/card'
 import { PageBanner } from '@/components/ui/page-banner'
 import { Badge } from '@/components/ui/badge'
 import { MasterSelect } from '@/components/ui/master-select'
@@ -11,10 +13,23 @@ import { PrintableBookingSlip } from '@/components/documents/printable-booking-s
 import { bookingsApi, customersApi, vehiclesApi, type BookingItem, type BookingDetail, type CustomerItem, type VehicleItem } from '@/lib/api'
 import { authStorage } from '@/lib/auth-storage'
 import { captureGeoLocation } from '@/lib/geolocation'
+import {
+  formatPreferredSlotDisplay,
+  preferredSlotToTimeValue,
+  timeValueToPreferredSlot,
+} from '@/lib/time-slot'
 
-const BOOKING_STATUSES = ['BOOKED', 'CONFIRMED', 'RESCHEDULED', 'CANCELLED', 'ARRIVED', 'NO_SHOW'] as const
+/** Select value when advisor adds a vehicle inline (persisted via vehicles API / CRM master). */
+const NEW_VEHICLE_ID = '__new_vehicle__'
+
+const BOOKING_STATUSES = [
+  'CONFIRMED', 'AWAITING_PICKUP', 'PICKUP_ASSIGNED', 'PICKUP_IN_PROGRESS',
+  'AWAITING_GATE_IN', 'CHECKED_IN', 'CANCELLED', 'NO_SHOW',
+] as const
 
 const emptyForm = {
+  bookingType: 'NORMAL' as 'NORMAL' | 'BREAKDOWN_ON_SPOT',
+  arrivalMethod: 'SELF' as 'SELF' | 'PICKUP',
   customerId: '',
   vehicleId: '',
   serviceType: '',
@@ -22,7 +37,8 @@ const emptyForm = {
   preferredSlot: '',
   preferredDate: '',
   customerComplaint: '',
-  status: 'BOOKED',
+  customerPriority: '',
+  status: 'CONFIRMED',
   remarks: '',
   engineNo: '',
   chassisNo: '',
@@ -30,6 +46,15 @@ const emptyForm = {
   pickupAddress: '',
   pickupLocationLat: undefined as number | undefined,
   pickupLocationLng: undefined as number | undefined,
+  breakdownAddress: '',
+  breakdownSymptoms: '',
+  breakdownSafetyNotes: '',
+  breakdownContact: '',
+  newVehicleRegistration: '',
+  newVehicleMake: '',
+  newVehicleModel: '',
+  newVehicleVariant: '',
+  newVehicleFuel: '',
 }
 
 export function BookingsPage() {
@@ -47,7 +72,11 @@ export function BookingsPage() {
   const printRef = useRef<HTMLDivElement>(null)
   const [loadingPrint, setLoadingPrint] = useState<string | null>(null)
   const [form, setForm] = useState(emptyForm)
+  const [formError, setFormError] = useState<string | null>(null)
   const [capturingLocation, setCapturingLocation] = useState(false)
+  const [page, setPage] = useState(1)
+  const [limit, setLimit] = useState(10)
+  const [pagination, setPagination] = useState<PaginationMeta>({ page: 1, limit: 10, total: 0, totalPages: 1 })
 
   const token = authStorage.getToken()
   const branchId = authStorage.getBranchId() ?? undefined
@@ -57,17 +86,18 @@ export function BookingsPage() {
     setLoading(true)
     try {
       const [b, c] = await Promise.all([
-        bookingsApi.list(token, branchId),
-        customersApi.list(token),
+        bookingsApi.list(token, branchId, { page, limit }),
+        customersApi.list(token, { limit: 500 }),
       ])
       setBookings(b.items)
+      setPagination(b.pagination)
       setCustomers(c.items)
     } finally {
       setLoading(false)
     }
   }
 
-  useEffect(() => { load() }, [])
+  useEffect(() => { load() }, [page, limit])
 
   useEffect(() => {
     if (!token || !form.customerId) {
@@ -78,7 +108,7 @@ export function BookingsPage() {
   }, [form.customerId, token])
 
   useEffect(() => {
-    if (!form.vehicleId) return
+    if (!form.vehicleId || form.vehicleId === NEW_VEHICLE_ID) return
     const selected = vehicles.find((v) => v.id === form.vehicleId)
     if (!selected) return
     setForm((prev) => ({
@@ -88,10 +118,36 @@ export function BookingsPage() {
     }))
   }, [form.vehicleId, vehicles])
 
+  const isNewVehicle = form.vehicleId === NEW_VEHICLE_ID
+
+  const resolveVehicleIdForSave = async (): Promise<string> => {
+    if (!token || !form.customerId) throw new Error('Customer is required')
+    if (form.vehicleId && form.vehicleId !== NEW_VEHICLE_ID) return form.vehicleId
+    if (!form.newVehicleRegistration.trim() || !form.newVehicleMake || !form.newVehicleModel) {
+      throw new Error('Enter registration, make and model for the new vehicle')
+    }
+    const created = await vehiclesApi.create(token, {
+      customerId: form.customerId,
+      registrationNo: form.newVehicleRegistration.trim().toUpperCase(),
+      make: form.newVehicleMake,
+      model: form.newVehicleModel,
+      variant: form.newVehicleVariant || undefined,
+      fuelType: form.newVehicleFuel || undefined,
+      engineNo: form.engineNo || undefined,
+      chassisNo: form.chassisNo || undefined,
+      vin: form.chassisNo || undefined,
+    }, branchId)
+    const newId = created.id ?? String((created as { _id?: string })._id ?? '')
+    if (!newId) throw new Error('Vehicle was created but id was missing')
+    setVehicles((prev) => [{ ...created, id: newId }, ...prev.filter((v) => v.id !== newId)])
+    return newId
+  }
+
   const resetForm = () => {
     setShowForm(false)
     setEditingId(null)
     setForm(emptyForm)
+    setFormError(null)
   }
 
   const openCreateForm = () => {
@@ -107,16 +163,24 @@ export function BookingsPage() {
       const detail = await bookingsApi.get(token, bookingId, branchId)
       setEditingId(bookingId)
       setForm({
+        ...emptyForm,
         customerId: detail.customer?.id ?? '',
         vehicleId: detail.vehicle?.id ?? '',
         serviceType: detail.serviceType ?? '',
         bookingSource: detail.source ?? '',
-        preferredSlot: detail.preferredSlot ?? '',
+        preferredSlot: preferredSlotToTimeValue(detail.preferredSlot),
         preferredDate: detail.preferredDate
           ? new Date(detail.preferredDate).toISOString().slice(0, 10)
           : '',
         customerComplaint: detail.customerComplaint ?? '',
-        status: detail.status ?? 'BOOKED',
+        bookingType: (detail.bookingType as 'NORMAL' | 'BREAKDOWN_ON_SPOT') ?? 'NORMAL',
+        arrivalMethod: (detail.arrivalMethod as 'SELF' | 'PICKUP') ?? (detail.pickupRequired ? 'PICKUP' : 'SELF'),
+        customerPriority: detail.customerPriority ?? '',
+        status: detail.status ?? 'CONFIRMED',
+        breakdownAddress: (detail.breakdownDetails as { address?: string })?.address ?? '',
+        breakdownSymptoms: (detail.breakdownDetails as { symptoms?: string })?.symptoms ?? '',
+        breakdownSafetyNotes: (detail.breakdownDetails as { safetyNotes?: string })?.safetyNotes ?? '',
+        breakdownContact: (detail.breakdownDetails as { contactAtLocation?: string })?.contactAtLocation ?? '',
         remarks: detail.remarks ?? '',
         engineNo: detail.vehicle?.engineNo ?? '',
         chassisNo: detail.vehicle?.chassisNo ?? detail.vehicle?.vin ?? '',
@@ -161,25 +225,40 @@ export function BookingsPage() {
     e.preventDefault()
     if (!token || !branchId) return
     setSaving(true)
+    setFormError(null)
     try {
       const vehiclePayload = {
         engineNo: form.engineNo || undefined,
         chassisNo: form.chassisNo || undefined,
       }
+      const pickupRequired = form.bookingType === 'BREAKDOWN_ON_SPOT' || form.arrivalMethod === 'PICKUP' || form.pickupRequired
       const pickupPayload = {
-        pickupRequired: form.pickupRequired,
-        pickupAddress: form.pickupRequired ? form.pickupAddress || undefined : undefined,
-        pickupLocationLat: form.pickupRequired ? form.pickupLocationLat : undefined,
-        pickupLocationLng: form.pickupRequired ? form.pickupLocationLng : undefined,
+        bookingType: form.bookingType,
+        arrivalMethod: pickupRequired ? 'PICKUP' : 'SELF',
+        customerPriority: form.customerPriority || undefined,
+        pickupRequired,
+        pickupAddress: pickupRequired ? (form.pickupAddress || form.breakdownAddress || undefined) : undefined,
+        pickupLocationLat: pickupRequired ? form.pickupLocationLat : undefined,
+        pickupLocationLng: pickupRequired ? form.pickupLocationLng : undefined,
+        breakdownDetails: form.bookingType === 'BREAKDOWN_ON_SPOT' ? {
+          address: form.breakdownAddress,
+          symptoms: form.breakdownSymptoms,
+          safetyNotes: form.breakdownSafetyNotes,
+          contactAtLocation: form.breakdownContact,
+          towRequired: true,
+        } : undefined,
       }
+
+      const preferredSlotLabel = timeValueToPreferredSlot(form.preferredSlot)
+      const vehicleId = await resolveVehicleIdForSave()
 
       if (editingId) {
         await bookingsApi.update(token, editingId, {
           customerId: form.customerId,
-          vehicleId: form.vehicleId,
+          vehicleId,
           serviceType: form.serviceType,
           source: form.bookingSource,
-          preferredSlot: form.preferredSlot,
+          preferredSlot: preferredSlotLabel || undefined,
           preferredDate: form.preferredDate || undefined,
           customerComplaint: form.customerComplaint,
           status: form.status,
@@ -193,10 +272,10 @@ export function BookingsPage() {
         const created = await bookingsApi.create(token, {
           branchId,
           customerId: form.customerId,
-          vehicleId: form.vehicleId,
+          vehicleId,
           serviceType: form.serviceType,
           source: form.bookingSource,
-          preferredSlot: form.preferredSlot,
+          preferredSlot: preferredSlotLabel || undefined,
           preferredDate: form.preferredDate || undefined,
           customerComplaint: form.customerComplaint,
           remarks: form.remarks,
@@ -207,12 +286,14 @@ export function BookingsPage() {
         await load()
         if (created.id) await openPrintSlip(created.id)
       }
+    } catch (err) {
+      setFormError(err instanceof Error ? err.message : 'Could not save booking')
     } finally {
       setSaving(false)
     }
   }
 
-  const canEdit = (status: string) => status !== 'ARRIVED' && status !== 'CANCELLED'
+  const canEdit = (status: string) => status !== 'CHECKED_IN' && status !== 'ARRIVED' && status !== 'CANCELLED'
 
   const capturePickupLocation = async () => {
     setCapturingLocation(true)
@@ -245,16 +326,56 @@ export function BookingsPage() {
         }
       />
 
-      {showForm && (
-        <Card className="no-print">
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle>{editingId ? 'Edit Booking' : 'Create Booking'}</CardTitle>
-            <Button variant="ghost" size="sm" onClick={resetForm}>
-              <X className="h-4 w-4" /> Close
+      <ModuleFormDialog
+        open={showForm}
+        onOpenChange={(open) => { if (!open) resetForm() }}
+        title={editingId ? 'Edit Booking' : 'Create Booking'}
+        description="Customer, vehicle, service slot and pickup details"
+        size="xl"
+        footer={
+          <>
+            <Button type="button" variant="outline" onClick={resetForm}>Cancel</Button>
+            <Button type="submit" form="booking-form" disabled={saving} className="min-w-[140px]">
+              {saving ? 'Saving...' : editingId ? 'Save changes' : 'Create booking'}
             </Button>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={handleSubmit} className="grid sm:grid-cols-2 gap-4">
+          </>
+        }
+      >
+            <form id="booking-form" onSubmit={handleSubmit} className="space-y-4">
+              {formError && (
+                <p className="text-sm text-red-600 rounded-lg border border-red-200 bg-red-50 px-3 py-2">{formError}</p>
+              )}
+              <div className="grid sm:grid-cols-2 gap-3">
+                <button
+                  type="button"
+                  className={`rounded-xl border-2 p-4 text-left transition ${form.bookingType === 'NORMAL' ? 'border-emerald-500 bg-emerald-50' : 'border-brand-border'}`}
+                  onClick={() => setForm({ ...form, bookingType: 'NORMAL' })}
+                >
+                  <div className="font-semibold">Normal booking</div>
+                  <p className="text-xs text-muted-foreground mt-1">Scheduled service or walk-in at workshop</p>
+                </button>
+                <button
+                  type="button"
+                  className={`rounded-xl border-2 p-4 text-left transition ${form.bookingType === 'BREAKDOWN_ON_SPOT' ? 'border-amber-500 bg-amber-50' : 'border-brand-border'}`}
+                  onClick={() => setForm({
+                    ...form,
+                    bookingType: 'BREAKDOWN_ON_SPOT',
+                    arrivalMethod: 'PICKUP',
+                    pickupRequired: true,
+                  })}
+                >
+                  <div className="font-semibold">Breakdown on-spot</div>
+                  <p className="text-xs text-muted-foreground mt-1">Roadside assistance · booking fee ₹0</p>
+                </button>
+              </div>
+
+              {form.bookingType === 'BREAKDOWN_ON_SPOT' && (
+                <div className="rounded-lg border border-amber-200 bg-amber-50/80 p-3 text-xs text-amber-900">
+                  Do not dispatch personnel into unsafe conditions. Confirm rescue availability before promising ETA.
+                </div>
+              )}
+
+              <div className="grid sm:grid-cols-2 gap-4">
               <div className="space-y-1.5">
                 <label className="text-sm font-medium">Customer *</label>
                 <select
@@ -269,7 +390,7 @@ export function BookingsPage() {
                   ))}
                 </select>
               </div>
-              <div className="space-y-1.5">
+              <div className="space-y-1.5 sm:col-span-2">
                 <label className="text-sm font-medium">Vehicle *</label>
                 <select
                   required
@@ -279,16 +400,68 @@ export function BookingsPage() {
                     vehicleId: e.target.value,
                     engineNo: '',
                     chassisNo: '',
+                    newVehicleRegistration: '',
+                    newVehicleMake: '',
+                    newVehicleModel: '',
+                    newVehicleVariant: '',
+                    newVehicleFuel: '',
                   })}
                   disabled={!form.customerId}
                   className="flex h-10 w-full rounded-lg border border-brand-border px-3 text-sm disabled:opacity-50"
                 >
                   <option value="">{form.customerId ? 'Select vehicle' : 'Select customer first'}</option>
                   {vehicles.map((v) => (
-                    <option key={v.id} value={v.id}>{v.registrationNo} — {v.make} {v.model}</option>
+                    <option key={v.id} value={v.id}>
+                      {v.registrationNo} — {v.make} {v.model}
+                    </option>
                   ))}
+                  {form.customerId && !editingId && (
+                    <option value={NEW_VEHICLE_ID}>+ Add another vehicle (saved to vehicle master)</option>
+                  )}
                 </select>
+                <p className="text-xs text-brand-muted">
+                  Pick a vehicle already linked to this customer, or add a new one — it is stored under CRM → Vehicles.
+                </p>
               </div>
+              {isNewVehicle && (
+                <div className="sm:col-span-2 rounded-xl border border-emerald-200 bg-emerald-50/50 p-4 grid sm:grid-cols-2 gap-4">
+                  <p className="sm:col-span-2 text-sm font-medium text-emerald-950">New vehicle details</p>
+                  <Input
+                    label="Registration number *"
+                    required
+                    placeholder="e.g. BR 01 AB 1234"
+                    value={form.newVehicleRegistration}
+                    onChange={(e) => setForm({ ...form, newVehicleRegistration: e.target.value })}
+                  />
+                  <MasterSelect
+                    category="VEHICLE_MAKE"
+                    label="Make *"
+                    required
+                    value={form.newVehicleMake}
+                    onChange={(v) => setForm({ ...form, newVehicleMake: v, newVehicleModel: '' })}
+                  />
+                  <MasterSelect
+                    category="VEHICLE_MODEL"
+                    label="Model *"
+                    required
+                    value={form.newVehicleModel}
+                    onChange={(v) => setForm({ ...form, newVehicleModel: v })}
+                    parentCode={form.newVehicleMake}
+                  />
+                  <Input
+                    label="Variant"
+                    placeholder="Optional"
+                    value={form.newVehicleVariant}
+                    onChange={(e) => setForm({ ...form, newVehicleVariant: e.target.value })}
+                  />
+                  <MasterSelect
+                    category="FUEL_TYPE"
+                    label="Fuel type"
+                    value={form.newVehicleFuel}
+                    onChange={(v) => setForm({ ...form, newVehicleFuel: v })}
+                  />
+                </div>
+              )}
               <Input
                 label="Engine Number"
                 placeholder="e.g. L15Z1-7890123"
@@ -324,14 +497,36 @@ export function BookingsPage() {
                 />
               </div>
               <div className="space-y-1.5">
-                <label className="text-sm font-medium">Preferred Slot</label>
+                <label htmlFor="booking-preferred-slot" className="text-sm font-medium">
+                  Preferred time
+                </label>
                 <input
-                  className="flex h-10 w-full rounded-lg border border-brand-border px-3 text-sm"
-                  placeholder="e.g. 10:00 AM"
+                  id="booking-preferred-slot"
+                  type="time"
+                  step={900}
+                  className="flex h-10 w-full rounded-lg border border-brand-border bg-white px-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-yellow focus:border-transparent"
                   value={form.preferredSlot}
                   onChange={(e) => setForm({ ...form, preferredSlot: e.target.value })}
                 />
+                <p className="text-xs text-brand-muted">
+                  Click the field to open the time picker (15-minute steps). Saved as{' '}
+                  {form.preferredSlot ? formatPreferredSlotDisplay(form.preferredSlot) : '—'}.
+                </p>
               </div>
+              {form.bookingType === 'BREAKDOWN_ON_SPOT' && (
+                <>
+                  <Input label="Breakdown address *" value={form.breakdownAddress} onChange={(e) => setForm({ ...form, breakdownAddress: e.target.value })} />
+                  <Input label="Contact at location" value={form.breakdownContact} onChange={(e) => setForm({ ...form, breakdownContact: e.target.value })} />
+                  <div className="sm:col-span-2 space-y-1.5">
+                    <label className="text-sm font-medium">Symptoms</label>
+                    <textarea className="flex w-full rounded-lg border border-brand-border px-3 py-2 text-sm min-h-[60px]" value={form.breakdownSymptoms} onChange={(e) => setForm({ ...form, breakdownSymptoms: e.target.value })} />
+                  </div>
+                  <div className="sm:col-span-2 space-y-1.5">
+                    <label className="text-sm font-medium">Safety notes</label>
+                    <textarea className="flex w-full rounded-lg border border-brand-border px-3 py-2 text-sm min-h-[48px]" value={form.breakdownSafetyNotes} onChange={(e) => setForm({ ...form, breakdownSafetyNotes: e.target.value })} />
+                  </div>
+                </>
+              )}
               {editingId && (
                 <div className="space-y-1.5">
                   <label className="text-sm font-medium">Status</label>
@@ -424,35 +619,25 @@ export function BookingsPage() {
                   onChange={(e) => setForm({ ...form, remarks: e.target.value })}
                 />
               </div>
-              <div className="sm:col-span-2 flex gap-3">
-                <Button type="submit" disabled={saving}>
-                  {saving ? 'Saving...' : editingId ? 'Save Changes' : 'Create & Print Slip'}
-                </Button>
-                <Button type="button" variant="outline" onClick={resetForm}>Cancel</Button>
               </div>
             </form>
-          </CardContent>
-        </Card>
-      )}
+      </ModuleFormDialog>
 
-      {printBooking && (
-        <Card ref={printRef} className="print-host-card border-brand-yellow/40 shadow-lg">
-          <CardHeader className="no-print flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-base">Booking Slip — {printBooking.bookingNumber}</CardTitle>
-            <Button variant="ghost" size="sm" onClick={() => setPrintBooking(null)}>
-              <X className="h-4 w-4" /> Close
-            </Button>
-          </CardHeader>
-          <CardContent>
-            <PrintableBookingSlip booking={printBooking} />
-          </CardContent>
-        </Card>
-      )}
+      <ModuleFormDialog
+        open={!!printBooking}
+        onOpenChange={(open) => { if (!open) setPrintBooking(null) }}
+        title={printBooking ? `Booking Slip — ${printBooking.bookingNumber}` : 'Booking Slip'}
+        size="xl"
+      >
+        <div ref={printRef} className="print-host-card">
+          {printBooking ? <PrintableBookingSlip booking={printBooking} /> : null}
+        </div>
+      </ModuleFormDialog>
 
       {loading ? (
         <Card className="no-print"><p className="text-center py-8 text-sm text-brand-muted">Loading bookings...</p></Card>
       ) : bookings.length === 0 ? (
-        <Card className="no-print"><p className="text-center py-8 text-sm text-brand-muted">No bookings yet. Create one above.</p></Card>
+        <Card className="no-print"><p className="text-center py-8 text-sm text-brand-muted">No bookings yet. Use New Booking to create one.</p></Card>
       ) : (
         <>
           <div className="grid gap-3 lg:hidden no-print">
@@ -480,7 +665,7 @@ export function BookingsPage() {
                     </div>
                     <div>
                       <p className="text-xs text-brand-muted">Slot</p>
-                      <p className="font-medium">{b.preferredSlot ?? '—'}</p>
+                      <p className="font-medium">{formatPreferredSlotDisplay(b.preferredSlot)}</p>
                     </div>
                   </div>
                   <div className="flex flex-wrap gap-2 pt-1">
@@ -530,7 +715,7 @@ export function BookingsPage() {
                           <span className="flex items-center gap-1.5"><Car className="h-3.5 w-3.5" /> {b.vehicle?.registrationNo ?? '—'}</span>
                         </td>
                         <td className="px-3 py-3">{b.serviceType ?? '—'}</td>
-                        <td className="px-3 py-3">{b.preferredSlot ?? '—'}</td>
+                        <td className="px-3 py-3">{formatPreferredSlotDisplay(b.preferredSlot)}</td>
                         <td className="px-3 py-3">
                           <div className="flex flex-wrap items-center gap-1">
                             <Badge>{b.status}</Badge>
@@ -562,6 +747,14 @@ export function BookingsPage() {
                   </tbody>
                 </table>
               </div>
+              <PaginationBar
+                page={pagination.page}
+                totalPages={pagination.totalPages}
+                total={pagination.total}
+                limit={pagination.limit}
+                onPageChange={setPage}
+                onLimitChange={(n) => { setLimit(n); setPage(1) }}
+              />
             </CardContent>
           </Card>
         </>

@@ -5,6 +5,8 @@ import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { PageBanner } from '@/components/ui/page-banner'
 import { Badge } from '@/components/ui/badge'
+import { ModuleFormDialog } from '@/components/ui/module-form-dialog'
+import { PaginationBar, clientPagination } from '@/components/ui/pagination-bar'
 import { MASTER_CATEGORIES, type MasterCategory } from '@/lib/master-categories'
 import { mastersApi, type MasterItem } from '@/lib/api'
 import { authStorage } from '@/lib/auth-storage'
@@ -16,6 +18,9 @@ export function MastersPage() {
   const [form, setForm] = useState({ code: '', label: '', parentCode: '' })
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [showForm, setShowForm] = useState(false)
+  const [page, setPage] = useState(1)
+  const [limit, setLimit] = useState(10)
 
   const loadItems = async () => {
     const token = authStorage.getToken()
@@ -34,6 +39,7 @@ export function MastersPage() {
 
   useEffect(() => {
     loadItems()
+    setPage(1)
   }, [activeCategory])
 
   const handleCreate = async (e: React.FormEvent) => {
@@ -49,6 +55,7 @@ export function MastersPage() {
         parentCode: form.parentCode || undefined,
       })
       setForm({ code: '', label: '', parentCode: '' })
+      setShowForm(false)
       await loadItems()
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to create')
@@ -65,6 +72,7 @@ export function MastersPage() {
   }
 
   const meta = MASTER_CATEGORIES[activeCategory]
+  const { slice: pageItems, meta: pageMeta } = clientPagination(items, page, limit)
 
   return (
     <div className="space-y-6">
@@ -112,7 +120,12 @@ export function MastersPage() {
                   </CardTitle>
                   <p className="text-sm text-brand-muted mt-1">{meta.description}</p>
                 </div>
-                <Badge variant="secondary">{items.length} items</Badge>
+                <div className="flex items-center gap-2">
+                  <Badge variant="secondary">{items.length} items</Badge>
+                  <Button size="sm" onClick={() => setShowForm(true)}>
+                    <Plus className="h-4 w-4" /> Add Item
+                  </Button>
+                </div>
               </div>
             </CardHeader>
             <CardContent>
@@ -122,35 +135,44 @@ export function MastersPage() {
                 </div>
               )}
 
-              <form onSubmit={handleCreate} className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-6 p-4 rounded-xl bg-brand-grey/50 border border-brand-border">
-                <Input
-                  label="Code"
-                  placeholder="e.g. AC_SERVICE"
-                  value={form.code}
-                  onChange={(e) => setForm({ ...form, code: e.target.value })}
-                  required
-                />
-                <Input
-                  label="Display Label"
-                  placeholder="e.g. AC Service"
-                  value={form.label}
-                  onChange={(e) => setForm({ ...form, label: e.target.value })}
-                  required
-                />
-                {activeCategory === 'VEHICLE_MODEL' && (
+              <ModuleFormDialog
+                open={showForm}
+                onOpenChange={setShowForm}
+                title={`Add ${meta.label}`}
+                description={meta.description}
+                footer={
+                  <>
+                    <Button type="button" variant="outline" onClick={() => setShowForm(false)}>Cancel</Button>
+                    <Button type="submit" form="master-item-form" disabled={saving}>Add Item</Button>
+                  </>
+                }
+              >
+                <form id="master-item-form" onSubmit={handleCreate} className="grid sm:grid-cols-2 gap-3">
                   <Input
-                    label="Parent Make Code"
-                    placeholder="e.g. HONDA"
-                    value={form.parentCode}
-                    onChange={(e) => setForm({ ...form, parentCode: e.target.value })}
+                    label="Code"
+                    placeholder="e.g. AC_SERVICE"
+                    value={form.code}
+                    onChange={(e) => setForm({ ...form, code: e.target.value })}
+                    required
                   />
-                )}
-                <div className="flex items-end">
-                  <Button type="submit" disabled={saving} className="w-full">
-                    <Plus className="h-4 w-4" /> Add Item
-                  </Button>
-                </div>
-              </form>
+                  <Input
+                    label="Display Label"
+                    placeholder="e.g. AC Service"
+                    value={form.label}
+                    onChange={(e) => setForm({ ...form, label: e.target.value })}
+                    required
+                  />
+                  {activeCategory === 'VEHICLE_MODEL' && (
+                    <Input
+                      label="Parent Make Code"
+                      placeholder="e.g. HONDA"
+                      value={form.parentCode}
+                      onChange={(e) => setForm({ ...form, parentCode: e.target.value })}
+                      className="sm:col-span-2"
+                    />
+                  )}
+                </form>
+              </ModuleFormDialog>
 
               {loading ? (
                 <p className="text-sm text-brand-muted text-center py-8">Loading...</p>
@@ -170,7 +192,7 @@ export function MastersPage() {
                       </tr>
                     </thead>
                     <tbody>
-                      {items.map((item) => (
+                      {pageItems.map((item) => (
                         <tr key={item.id} className="border-b border-brand-border hover:bg-brand-grey/30">
                           <td className="px-4 py-3 font-mono text-xs">{item.code}</td>
                           <td className="px-4 py-3 font-medium">{item.label}</td>
@@ -187,6 +209,16 @@ export function MastersPage() {
                     </tbody>
                   </table>
                 </div>
+              )}
+              {!loading && items.length > 0 && (
+                <PaginationBar
+                  page={pageMeta.page}
+                  totalPages={pageMeta.totalPages}
+                  total={pageMeta.total}
+                  limit={pageMeta.limit}
+                  onPageChange={setPage}
+                  onLimitChange={(n) => { setLimit(n); setPage(1) }}
+                />
               )}
             </CardContent>
           </Card>

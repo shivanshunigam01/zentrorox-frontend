@@ -37,8 +37,8 @@ npm run preview
 
 | Variable | Purpose |
 |----------|---------|
-| `VITE_USE_LOCAL_API=true` | All API calls stay in the browser (default for testing) |
-| `VITE_USE_LOCAL_API=false` | Use a real API at `VITE_API_BASE_URL` when the backend is ready |
+| `VITE_USE_LOCAL_API=false` | **Default.** Use the real API at `VITE_API_BASE_URL` |
+| `VITE_USE_LOCAL_API=true` | Offline browser-only demo (no MongoDB); not for QA or production |
 
 To reset demo data: DevTools → Application → Local Storage → delete `zs_local_db_v1` and sign in again.
 

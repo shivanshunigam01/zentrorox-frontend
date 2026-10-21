@@ -13,6 +13,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import { StickerBadge } from '@/components/ui/sticker-badge'
 import { authApi } from '@/lib/api'
 import { authStorage } from '@/lib/auth-storage'
+import { isLocalApiEnabled } from '@/lib/local-mode'
 import { IMAGES, GIFS, STICKERS } from '@/lib/assets'
 
 const loginSchema = z.object({
@@ -31,6 +32,8 @@ const features = [
   { emoji: STICKERS.fast, label: 'Audit Trail' },
 ]
 
+const showDemoHints = import.meta.env.DEV || isLocalApiEnabled() || import.meta.env.VITE_SHOW_DEMO_LOGIN === 'true'
+
 export function LoginPage() {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
@@ -41,12 +44,19 @@ export function LoginPage() {
 
   const { register, handleSubmit, formState: { errors } } = useForm<LoginForm>({
     resolver: zodResolver(loginSchema),
-    defaultValues: {
-      tenantCode: 'DEMO-MOTORS',
-      identifier: 'rajesh@demomotors.com',
-      password: 'demo1234',
-      rememberMe: true,
-    },
+    defaultValues: showDemoHints
+      ? {
+          tenantCode: 'DEMO-MOTORS',
+          identifier: 'rajesh@demomotors.com',
+          password: 'demo1234',
+          rememberMe: true,
+        }
+      : {
+          tenantCode: '',
+          identifier: '',
+          password: '',
+          rememberMe: false,
+        },
   })
 
   const onSubmit = async (data: LoginForm) => {
@@ -62,6 +72,8 @@ export function LoginPage() {
         firstName: result.user.firstName,
         lastName: result.user.lastName,
         role: result.user.role,
+        roleCode: result.user.roleCode,
+        permissions: result.user.permissions ?? [],
         tenant: result.user.tenant,
         branches: result.user.branches,
         defaultBranchId: result.user.defaultBranchId,
@@ -175,17 +187,19 @@ export function LoginPage() {
                 </Button>
               </form>
 
-              <div className="mt-6 p-4 rounded-xl bg-gradient-to-br from-brand-yellow/15 to-brand-yellow/5 border border-brand-yellow/25">
-                <div className="flex items-start gap-3 text-xs text-brand-muted">
-                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-brand-yellow/25 text-lg">🔑</div>
-                  <div>
-                    <p className="font-semibold text-brand-charcoal text-sm mb-1">Demo Credentials</p>
-                    <p><strong>Tenant:</strong> DEMO-MOTORS</p>
-                    <p><strong>Email:</strong> rajesh@demomotors.com</p>
-                    <p><strong>Password:</strong> demo1234</p>
+              {showDemoHints && (
+                <div className="mt-6 p-4 rounded-xl bg-gradient-to-br from-brand-yellow/15 to-brand-yellow/5 border border-brand-yellow/25">
+                  <div className="flex items-start gap-3 text-xs text-brand-muted">
+                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-brand-yellow/25 text-lg">🔑</div>
+                    <div>
+                      <p className="font-semibold text-brand-charcoal text-sm mb-1">Demo Credentials</p>
+                      <p><strong>Tenant:</strong> DEMO-MOTORS</p>
+                      <p><strong>Email:</strong> rajesh@demomotors.com</p>
+                      <p><strong>Password:</strong> demo1234</p>
+                    </div>
                   </div>
                 </div>
-              </div>
+              )}
             </CardContent>
           </Card>
 
