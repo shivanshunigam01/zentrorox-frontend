@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { PaginationBar } from '@/components/ui/pagination-bar'
 import { authStorage } from '@/lib/auth-storage'
+import { appToast } from '@/lib/app-toast'
 import { wipApi, partsApi } from '@/lib/api'
 
 const TABS = [
@@ -34,7 +35,6 @@ export function WipManagementPage() {
   const [queue, setQueue] = useState<{ items: unknown[]; total: number; limit: number }>({ items: [], total: 0, limit: 20 })
   const [workspace, setWorkspace] = useState<Record<string, unknown> | null>(null)
   const [loading, setLoading] = useState(false)
-  const [message, setMessage] = useState('')
   const [parts, setParts] = useState<Array<{ id: string; partNumber: string; description: string }>>([])
   const [warehouseId, setWarehouseId] = useState('')
 
@@ -100,7 +100,7 @@ export function WipManagementPage() {
     if (!token || !jobCardId) return
     await wipApi.updateWorkItem(token, jobCardId, itemId, patch, branchId)
     await loadWorkspace(jobCardId)
-    setMessage('Work item updated')
+    appToast.success('Work item updated')
   }
 
   const completeItem = async (itemId: string) => {
@@ -109,7 +109,7 @@ export function WipManagementPage() {
     if (!desc) return
     await wipApi.completeWorkItem(token, jobCardId, itemId, { workDoneDescription: desc }, branchId)
     await loadWorkspace(jobCardId)
-    setMessage('Marked complete — pending supervisor verification')
+    appToast.success('Marked complete — pending supervisor verification')
   }
 
   const requestPart = async (workItemId: string, partId: string) => {
@@ -120,7 +120,7 @@ export function WipManagementPage() {
       workItemId,
       lines: [{ partId, quantityRequested: 1, workItemId }],
     }, branchId)
-    setMessage('Parts requisition created (draft). Submit from parts desk.')
+    appToast.success('Parts requisition created (draft). Submit from parts desk.')
     await loadWorkspace(jobCardId)
   }
 
@@ -129,7 +129,7 @@ export function WipManagementPage() {
     const fault = window.prompt('Describe the additional fault discovered')?.trim()
     if (!fault) return
     await wipApi.createAdditionalWork(token, { jobCardId, sourceWorkItemId: workItemId, faultDescription: fault }, branchId)
-    setMessage('Additional work request created')
+    appToast.success('Additional work request created')
     await loadWorkspace(jobCardId)
   }
 
@@ -157,7 +157,6 @@ export function WipManagementPage() {
             </Button>
           </div>
         </div>
-        {message && <p className="text-sm text-green-700">{message}</p>}
 
         <div className="grid gap-4 lg:grid-cols-2">
           <Card>

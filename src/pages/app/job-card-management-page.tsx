@@ -9,6 +9,7 @@ import { Badge } from '@/components/ui/badge'
 import { PaginationBar } from '@/components/ui/pagination-bar'
 import { ModuleFormDialog } from '@/components/ui/module-form-dialog'
 import { authStorage } from '@/lib/auth-storage'
+import { appToast } from '@/lib/app-toast'
 import { jobCardsApi } from '@/lib/api'
 
 const TABS = [
@@ -53,7 +54,6 @@ export function JobCardManagementPage() {
   const [teams, setTeams] = useState<Array<{ id: string; name: string }>>([])
   const [assignOpen, setAssignOpen] = useState(false)
   const [selectedTeam, setSelectedTeam] = useState('')
-  const [message, setMessage] = useState<string | null>(null)
 
   const loadQueue = async () => {
     if (!token) return
@@ -89,7 +89,7 @@ export function JobCardManagementPage() {
       duplicate?: boolean
     }
     const id = jobCard?._id?.toString()
-    setMessage('Job card created')
+    appToast.success('Job card created')
     await loadQueue()
     if (id) navigate(`/app/workshop/job-cards/${id}`)
   }
@@ -99,12 +99,12 @@ export function JobCardManagementPage() {
     const workItems = (workspace?.workItems as Array<{ _id: string; status: string }>) ?? []
     const ids = workItems.filter((w) => w.status === 'PENDING' || w.status === 'ASSIGNED').map((w) => w._id)
     if (!ids.length) {
-      setMessage('No work items to assign')
+      appToast.info('No work items to assign')
       return
     }
     await jobCardsApi.createAssignment(token, jobCardId, { teamId: selectedTeam, workItemIds: ids }, branchId)
     setAssignOpen(false)
-    setMessage('Assignment saved (draft)')
+    appToast.success('Assignment saved (draft)')
     await loadWorkspace(jobCardId)
   }
 
@@ -116,14 +116,13 @@ export function JobCardManagementPage() {
     return (
       <div className="space-y-6 pb-20">
         <PageBanner title={`Job Card ${String(jc.jobCardNumber)}`} description="Teams, locations, delivery and release" icon={Wrench} gradient="from-brand-charcoal to-slate-800" />
-        {message && <p className="text-sm text-green-700">{message}</p>}
         <div className="flex flex-wrap gap-2">
           <Button variant="outline" onClick={() => navigate('/app/workshop/job-cards')}>Back to queue</Button>
           <Button onClick={() => setAssignOpen(true)}>Assign team</Button>
-          <Button variant="outline" onClick={() => jobCardsApi.deliveryPlan(token!, jobCardId, { workshopPlannedStart: new Date().toISOString() }, branchId).then(() => setMessage('Delivery plan updated'))}>
+          <Button variant="outline" onClick={() => jobCardsApi.deliveryPlan(token!, jobCardId, { workshopPlannedStart: new Date().toISOString() }, branchId).then(() => appToast.success('Delivery plan updated'))}>
             Recalculate delivery
           </Button>
-          <Button variant="ghost" onClick={() => jobCardsApi.openPdf(token!, jobCardId, branchId).catch((e) => setMessage(e instanceof Error ? e.message : 'PDF failed'))}>Print PDF</Button>
+          <Button variant="ghost" onClick={() => jobCardsApi.openPdf(token!, jobCardId, branchId).catch((e) => appToast.error(e instanceof Error ? e.message : 'PDF failed'))}>Print PDF</Button>
         </div>
 
         <div className="grid lg:grid-cols-2 gap-4">

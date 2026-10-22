@@ -10,6 +10,9 @@ import { authStorage } from '@/lib/auth-storage'
 import { receivingApi, serviceVisitsApi, vocApi } from '@/lib/api'
 import { MultiImageUpload } from '@/components/service-visit/multi-image-upload'
 import { PrintableReceivingReport, type ReceivingReportData } from '@/components/service-visit/printable-receiving-report'
+import { StickyActionBar, WORKSPACE_ACTION_BAR_PAD } from '@/components/ui/sticky-action-bar'
+import { appToast } from '@/lib/app-toast'
+import { cn } from '@/lib/utils'
 
 const FUEL_LEVELS = ['Empty', '1/4', '1/2', '3/4', 'Full']
 const MATCH_OPTS = ['MATCH', 'MISMATCH', 'UNREADABLE', 'NOT_CHECKED'] as const
@@ -42,7 +45,7 @@ export function ServiceVisitReceivingWorkspacePage() {
 
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [message, setMessage] = useState<string | null>(null)
+  const [saving, setSaving] = useState<string | null>(null)
   const [phase, setPhase] = useState<{ readyForInspection: boolean; blockers: string[] } | null>(null)
 
   const [visit, setVisit] = useState<Record<string, unknown> | null>(null)
@@ -146,51 +149,84 @@ export function ServiceVisitReceivingWorkspacePage() {
 
   const saveDraft = async () => {
     if (!token || !visitId) return
-    setMessage(null)
+    setSaving('draft')
+    setError(null)
     try {
-      await receivingApi.saveDraft(token, visitId, buildDraftPayload(), branchId)
-      setMessage('Draft saved')
-      await load()
+      await appToast.run('Saving draft…', async () => {
+        await receivingApi.saveDraft(token, visitId, buildDraftPayload(), branchId)
+        await load()
+      }, { success: 'Draft saved' })
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Save failed')
+    } finally {
+      setSaving(null)
     }
   }
 
   const saveVoc = async () => {
     if (!token || !visitId) return
-    await vocApi.save(token, visitId, {
-      complaints: complaints.filter((c) => c.description.trim()).map((c) => ({
-        title: c.title,
-        description: c.description,
-        symptoms: c.symptoms,
-        source: c.source ?? 'ADVISOR',
-        requestedWork: c.requestedWork,
-        priority: c.priority,
-        customerRemarks: c.customerRemarks,
-      })),
-    }, branchId)
-    setMessage('VOC saved')
-    await load()
+    setSaving('voc')
+    try {
+      await appToast.run('Saving VOC…', async () => {
+        await vocApi.save(token, visitId, {
+          complaints: complaints.filter((c) => c.description.trim()).map((c) => ({
+            title: c.title,
+            description: c.description,
+            symptoms: c.symptoms,
+            source: c.source ?? 'ADVISOR',
+            requestedWork: c.requestedWork,
+            priority: c.priority,
+            customerRemarks: c.customerRemarks,
+          })),
+        }, branchId)
+        await load()
+      }, { success: 'VOC saved' })
+    } finally {
+      setSaving(null)
+    }
   }
 
   const confirmVoc = async () => {
     if (!token || !visitId) return
-    await saveVoc()
-    await vocApi.confirm(token, visitId, branchId)
-    setMessage('VOC confirmed by service advisor')
-    await load()
+    setSaving('confirm')
+    try {
+      await appToast.run('Confirming VOC…', async () => {
+        await vocApi.save(token, visitId, {
+          complaints: complaints.filter((c) => c.description.trim()).map((c) => ({
+            title: c.title,
+            description: c.description,
+            symptoms: c.symptoms,
+            source: c.source ?? 'ADVISOR',
+            requestedWork: c.requestedWork,
+            priority: c.priority,
+            customerRemarks: c.customerRemarks,
+          })),
+        }, branchId)
+        await vocApi.confirm(token, visitId, branchId)
+        await load()
+      }, { success: 'VOC confirmed by service advisor' })
+    } finally {
+      setSaving(null)
+    }
   }
 
   const completeReceiving = async () => {
     if (!token || !visitId) return
-    await saveDraft()
-    const res = await receivingApi.complete(token, visitId, branchId)
-    setMessage(
-      (res as { alreadyCompleted?: boolean }).alreadyCompleted
-        ? 'Receiving was already completed'
-        : `Receiving ${res.receivingStatus}`,
-    )
-    await load()
+    setSaving('complete')
+    try {
+      const res = await appToast.run('Completing receiving…', async () => {
+        await receivingApi.saveDraft(token, visitId, buildDraftPayload(), branchId)
+        return receivingApi.complete(token, visitId, branchId)
+      }, { success: 'Receiving completed' })
+      await load()
+      if ((res as { alreadyCompleted?: boolean }).alreadyCompleted) {
+        appToast.info('Receiving was already completed')
+      }
+    } catch {
+      /* toast handled */
+    } finally {
+      setSaving(null)
+    }
   }
 
   const reportData: ReceivingReportData = {
@@ -218,7 +254,7 @@ export function ServiceVisitReceivingWorkspacePage() {
   if (!visitId) return null
 
   return (
-    <div className="space-y-6">
+    <div className={cn('space-y-6', WORKSPACE_ACTION_BAR_PAD)}>
       <PageBanner
         title="Service visit receiving"
         description="Booking, pickup history, gate-in, inventory, images and VOC on one visit"
@@ -228,8 +264,6 @@ export function ServiceVisitReceivingWorkspacePage() {
 
       {loading && <p className="text-sm text-muted-foreground">Loading workspace…</p>}
       {error && <p className="text-sm text-red-600">{error}</p>}
-      {message && <p className="text-sm text-green-700">{message}</p>}
-
       {phase && (
         <div className="flex flex-wrap gap-2 items-center">
           {phase.readyForInspection ? (
@@ -416,21 +450,31 @@ export function ServiceVisitReceivingWorkspacePage() {
         </CardContent>
       </Card>
 
-      <div className="flex flex-wrap gap-2 sticky bottom-4 bg-background/90 p-3 border rounded-xl">
-        <Button type="button" onClick={saveDraft} disabled={locked}><Save className="w-4 h-4 mr-1" />Save draft</Button>
-        <Button type="button" variant="secondary" onClick={saveVoc} disabled={vocConfirmed}>Save VOC</Button>
-        <Button type="button" variant="secondary" onClick={confirmVoc} disabled={vocConfirmed}>
-          <CheckCircle2 className="w-4 h-4 mr-1" />Advisor confirm VOC
+      <StickyActionBar innerClassName="gap-y-2">
+        <Button type="button" onClick={saveDraft} disabled={locked || saving !== null}>
+          <Save className="w-4 h-4 mr-1" />
+          {saving === 'draft' ? 'Saving…' : 'Save draft'}
         </Button>
-        <Button type="button" onClick={completeReceiving} disabled={locked}>Complete receiving</Button>
-        <Button type="button" variant="ghost" onClick={() => window.print()}><Printer className="w-4 h-4 mr-1" />Print report</Button>
+        <Button type="button" variant="secondary" onClick={saveVoc} disabled={vocConfirmed || saving !== null}>
+          {saving === 'voc' ? 'Saving…' : 'Save VOC'}
+        </Button>
+        <Button type="button" variant="secondary" onClick={confirmVoc} disabled={vocConfirmed || saving !== null}>
+          <CheckCircle2 className="w-4 h-4 mr-1" />
+          {saving === 'confirm' ? 'Confirming…' : 'Advisor confirm VOC'}
+        </Button>
+        <Button type="button" onClick={completeReceiving} disabled={locked || saving !== null}>
+          {saving === 'complete' ? 'Completing…' : 'Complete receiving'}
+        </Button>
+        <Button type="button" variant="ghost" onClick={() => window.print()} disabled={saving !== null}>
+          <Printer className="w-4 h-4 mr-1" />Print report
+        </Button>
         <Button type="button" variant="ghost" onClick={() => navigate('/app/workshop/receiving-hub')}>Back to hub</Button>
-        <label className="flex items-center gap-2 text-sm ml-2">
+        <label className="flex items-center gap-2 text-sm ml-auto sm:ml-2 rounded-lg border border-brand-border bg-brand-grey/80 px-3 py-2">
           <input type="checkbox" checked={gate.customerAcknowledged} disabled={locked}
             onChange={(e) => setGate({ ...gate, customerAcknowledged: e.target.checked })} />
           Customer acknowledgment
         </label>
-      </div>
+      </StickyActionBar>
 
       <PrintableReceivingReport ref={printRef} data={reportData} />
     </div>

@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { PaginationBar } from '@/components/ui/pagination-bar'
 import { authStorage } from '@/lib/auth-storage'
+import { appToast } from '@/lib/app-toast'
 import { estimatesApi } from '@/lib/api'
 
 const CATEGORIES = ['LABOUR', 'PARTS', 'LUBRICANT', 'PICKUP', 'TOWING', 'OTHER'] as const
@@ -57,7 +58,6 @@ export function EstimateManagementPage() {
   const [lines, setLines] = useState<LineRow[]>([newLine()])
   const [totals, setTotals] = useState<Record<string, number>>({})
   const [version, setVersion] = useState(0)
-  const [message, setMessage] = useState<string | null>(null)
   const [page, setPage] = useState(1)
   const [limit, setLimit] = useState(10)
   const [queueTotal, setQueueTotal] = useState(0)
@@ -94,7 +94,7 @@ export function EstimateManagementPage() {
     const res = await estimatesApi.saveDraft(token, estimateId, lines, version, branchId)
     setTotals(res.totals)
     setVersion(res.version)
-    setMessage('Draft saved (server-calculated totals)')
+    appToast.success('Draft saved (server-calculated totals)')
   }
 
   const openEstimate = async (row: QueueRow) => {
@@ -103,10 +103,10 @@ export function EstimateManagementPage() {
       return
     }
     if (!token || !row.inspectionReportNumber) {
-      setMessage('Create estimate from completed inspection in Trial & Inspection first')
+      appToast.info('Create estimate from completed inspection in Trial & Inspection first')
       return
     }
-    setMessage('Use inspection case ID to create — open from inspection approval flow')
+    appToast.info('Use inspection case ID to create — open from inspection approval flow')
   }
 
   if (estimateId) {
@@ -114,7 +114,6 @@ export function EstimateManagementPage() {
     return (
       <div className="space-y-6 pb-24">
         <PageBanner title={`Estimate ${String(detail?.estimateNumber ?? estimateId)}`} description="Unified editor — server-side tax & totals" icon={FileText} gradient="from-amber-600 to-orange-700" />
-        {message && <p className="text-sm text-green-700">{message}</p>}
         <Badge variant="info">{status}</Badge>
 
         <div className="grid lg:grid-cols-3 gap-4">
@@ -157,11 +156,11 @@ export function EstimateManagementPage() {
 
         <div className="flex flex-wrap gap-2">
           <Button onClick={saveDraft}><Save className="w-4 h-4 mr-1" />Save draft</Button>
-          <Button variant="secondary" onClick={() => estimatesApi.submitReview(token!, estimateId, branchId).then(() => setMessage('Submitted for review'))}>
+          <Button variant="secondary" onClick={() => estimatesApi.submitReview(token!, estimateId, branchId).then(() => appToast.success('Submitted for review'))}>
             <Send className="w-4 h-4 mr-1" />Internal review
           </Button>
           <Button variant="secondary" onClick={() => estimatesApi.issue(token!, estimateId, branchId).then(() => loadEstimate(estimateId))}>Issue to customer</Button>
-          <Button type="button" variant="ghost" onClick={() => estimatesApi.openPdf(token!, estimateId, branchId).catch((e) => setMessage(e instanceof Error ? e.message : 'PDF failed'))}>
+          <Button type="button" variant="ghost" onClick={() => estimatesApi.openPdf(token!, estimateId, branchId).catch((e) => appToast.error(e instanceof Error ? e.message : 'PDF failed'))}>
             Preview PDF
           </Button>
           <Button variant="ghost" onClick={() => navigate('/app/workshop/estimates')}>Back to queue</Button>

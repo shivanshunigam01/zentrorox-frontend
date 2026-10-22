@@ -79,6 +79,31 @@ body {
   50% { opacity: 1; transform: scale(1.05); }
 }
 
+@keyframes toast-enter {
+  from {
+    opacity: 0;
+    transform: translateX(1rem) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0) scale(1);
+  }
+}
+
+.app-toast-enter {
+  animation: toast-enter 0.35s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.workspace-page-pad {
+  padding-bottom: 8.5rem;
+}
+
+@media (min-width: 640px) {
+  .workspace-page-pad {
+    padding-bottom: 9.5rem;
+  }
+}
+
 @keyframes shimmer {
   0% { background-position: -200% 0; }
   100% { background-position: 200% 0; }

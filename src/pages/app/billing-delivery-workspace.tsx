@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { billingApi, razorpayApi } from '@/lib/api'
+import { appToast } from '@/lib/app-toast'
 
 type Props = {
   visitId: string
@@ -12,7 +13,6 @@ type Props = {
 }
 
 export function BillingDeliveryWorkspace({ visitId, token, branchId, workspace, onRefresh }: Props) {
-  const [message, setMessage] = useState('')
   const [error, setError] = useState('')
   const invoice = workspace.invoice as {
     _id?: string
@@ -50,16 +50,17 @@ export function BillingDeliveryWorkspace({ visitId, token, branchId, workspace, 
     setError('')
     try {
       await fn()
-      setMessage(label)
+      appToast.success(label)
       onRefresh()
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Operation failed')
+      const msg = e instanceof Error ? e.message : 'Operation failed'
+      setError(msg)
+      appToast.error(msg)
     }
   }
 
   return (
     <div className="space-y-6">
-      {message && <p className="text-sm text-green-700">{message}</p>}
       {error && <p className="text-sm text-red-600">{error}</p>}
 
       <Card>

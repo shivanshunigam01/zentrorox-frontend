@@ -12,6 +12,8 @@ import { WORKSHOP_INSPECTION_BASE } from '@/lib/workshop-paths'
 import { PermissionDeniedCard } from '@/components/workshop/permission-denied-card'
 import { MultiImageUpload } from '@/components/service-visit/multi-image-upload'
 import { ClipboardList } from 'lucide-react'
+import { StickyActionBar, WORKSPACE_ACTION_BAR_PAD } from '@/components/ui/sticky-action-bar'
+import { appToast } from '@/lib/app-toast'
 
 const TRIAL_DISPOSITIONS = ['ROAD_TEST', 'STATIC_TEST', 'WORKSHOP_TEST', 'NOT_SAFE', 'NOT_REQUIRED', 'NOT_POSSIBLE']
 const CHECKLIST_RESULTS = ['PASS', 'FAIL', 'ATTENTION', 'NOT_TESTED', 'NOT_APPLICABLE']
@@ -30,7 +32,6 @@ export function TrialInspectionWorkspacePage() {
   const [responses, setResponses] = useState<Array<Record<string, unknown>>>([])
   const [finding, setFinding] = useState({ vehicleSystem: '', observedFailure: '', severity: 'MEDIUM', diagnosisConfidence: 'SUSPECTED' })
   const [report, setReport] = useState({ inspectionSummary: '', vehicleSafeToOperate: 'UNDETERMINED' })
-  const [message, setMessage] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
 
   const load = useCallback(async () => {
@@ -62,52 +63,54 @@ export function TrialInspectionWorkspacePage() {
   const assign = async () => {
     if (!inspectorId) return
     await inspectionsApi.assign(token!, caseId, { inspectorId, priority: 'NORMAL' }, branchId)
-    setMessage('Inspector assigned')
+    appToast.success('Inspector assigned')
     await load()
   }
 
   const start = async () => {
     await inspectionsApi.start(token!, caseId, branchId)
-    setMessage('Inspection started')
+    appToast.success('Inspection started')
     await load()
   }
 
   const saveTrial = async () => {
-    await inspectionsApi.saveTrial(token!, caseId, trial, branchId)
-    setMessage('Trial saved')
+    await appToast.run('Saving trial…', () => inspectionsApi.saveTrial(token!, caseId, trial, branchId), { success: 'Trial saved' })
   }
 
   const saveChecklist = async () => {
-    await inspectionsApi.saveChecklist(token!, caseId, responses, branchId)
-    setMessage('Checklist saved')
+    await appToast.run('Saving checklist…', () => inspectionsApi.saveChecklist(token!, caseId, responses, branchId), { success: 'Checklist saved' })
   }
 
   const addFinding = async () => {
-    await inspectionsApi.addFinding(token!, caseId, finding, branchId)
-    setMessage('Finding added')
-    await load()
+    await appToast.run('Adding finding…', async () => {
+      await inspectionsApi.addFinding(token!, caseId, finding, branchId)
+      await load()
+    }, { success: 'Finding added' })
   }
 
   const submit = async () => {
-    await inspectionsApi.submit(token!, caseId, report, branchId)
-    setMessage('Submitted for review')
-    await load()
+    await appToast.run('Submitting…', async () => {
+      await inspectionsApi.submit(token!, caseId, report, branchId)
+      await load()
+    }, { success: 'Submitted for review' })
   }
 
   const approve = async () => {
-    await inspectionsApi.review(token!, caseId, { decision: 'APPROVED', comments: 'Approved' }, branchId)
-    setMessage('Approved — visit advanced to estimate')
-    await load()
+    await appToast.run('Approving…', async () => {
+      await inspectionsApi.review(token!, caseId, { decision: 'APPROVED', comments: 'Approved' }, branchId)
+      await load()
+    }, { success: 'Approved — visit advanced to estimate' })
   }
 
   const rework = async () => {
-    await inspectionsApi.review(token!, caseId, { decision: 'REWORK', reworkInstructions: 'Please correct findings' }, branchId)
-    setMessage('Returned for rework')
-    await load()
+    await appToast.run('Sending back…', async () => {
+      await inspectionsApi.review(token!, caseId, { decision: 'REWORK', reworkInstructions: 'Please correct findings' }, branchId)
+      await load()
+    }, { success: 'Returned for rework' })
   }
 
   return (
-    <div className="space-y-6 pb-24">
+    <div className={`space-y-6 ${WORKSPACE_ACTION_BAR_PAD}`}>
       <PageBanner
         title={`Inspection ${String(detail?.inspectionNumber ?? caseId)}`}
         description="Unified trial, checklist, technical findings and diagnosis"
@@ -119,7 +122,6 @@ export function TrialInspectionWorkspacePage() {
       ) : error ? (
         <p className="text-red-600 text-sm">{error}</p>
       ) : null}
-      {message && <p className="text-green-700 text-sm">{message}</p>}
       <div className="flex flex-wrap gap-2">
         <Badge variant="info">{status}</Badge>
         {(search.get('mode') === 'assign' || status === 'PENDING_ASSIGNMENT') && <Badge variant="warning">Assign inspector</Badge>}
@@ -258,7 +260,7 @@ export function TrialInspectionWorkspacePage() {
         </CardContent>
       </Card>
 
-      <div className="flex flex-wrap gap-2 sticky bottom-4 bg-background/95 border rounded-xl p-3">
+      <StickyActionBar>
         <Button onClick={start} disabled={!inspectorId && status === 'PENDING_ASSIGNMENT'}><Play className="w-4 h-4 mr-1" />Start</Button>
         <Button variant="secondary" disabled={locked} onClick={submit}><Send className="w-4 h-4 mr-1" />Submit for review</Button>
         {status === 'AWAITING_REVIEW' && (
@@ -268,7 +270,7 @@ export function TrialInspectionWorkspacePage() {
           </>
         )}
         <Button variant="ghost" onClick={() => navigate(WORKSHOP_INSPECTION_BASE)}>Back to queue</Button>
-      </div>
+      </StickyActionBar>
     </div>
   )
 }

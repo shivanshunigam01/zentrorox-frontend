@@ -10,6 +10,7 @@ import { ModuleFormDialog } from '@/components/ui/module-form-dialog'
 import { PaginationBar } from '@/components/ui/pagination-bar'
 import { MasterSelect } from '@/components/ui/master-select'
 import { authStorage } from '@/lib/auth-storage'
+import { appToast } from '@/lib/app-toast'
 import { approvalsApi, paymentsApi } from '@/lib/api'
 
 const TABS = [
@@ -49,7 +50,6 @@ export function ApprovalManagementPage() {
   const [regSearch, setRegSearch] = useState('')
   const [searchHits, setSearchHits] = useState<Array<{ vehicle: { registrationNo: string }; visits: Array<{ serviceVisitId: string; visitNumber?: string; estimateIssued?: boolean }> }>>([])
   const [workspace, setWorkspace] = useState<Record<string, unknown> | null>(null)
-  const [message, setMessage] = useState<string | null>(null)
   const [advanceOpen, setAdvanceOpen] = useState(false)
   const [advanceAmount, setAdvanceAmount] = useState('')
   const [advanceMode, setAdvanceMode] = useState('CASH')
@@ -96,7 +96,7 @@ export function ApprovalManagementPage() {
       termsAccepted: true,
       idempotencyKey: key,
     }, branchId)
-    setMessage('Approval recorded')
+    appToast.success('Approval recorded')
     setConfirmOpen(false)
     await loadWorkspace(visitId)
     await loadQueue()
@@ -106,7 +106,7 @@ export function ApprovalManagementPage() {
     if (!token || !visitId) return
     const amount = Number(advanceAmount)
     if (!amount || amount <= 0) {
-      setMessage('Enter a positive advance amount')
+      appToast.info('Enter a positive advance amount')
       return
     }
     await paymentsApi.createAdvance(token, {
@@ -117,7 +117,7 @@ export function ApprovalManagementPage() {
     }, branchId)
     setAdvanceOpen(false)
     setAdvanceAmount('')
-    setMessage('Advance recorded — verify if required for non-cash')
+    appToast.success('Advance recorded — verify if required for non-cash')
     await loadWorkspace(visitId)
   }
 
@@ -134,7 +134,6 @@ export function ApprovalManagementPage() {
           icon={CheckSquare}
           gradient="from-green-600 to-emerald-800"
         />
-        {message && <p className="text-sm text-green-700">{message}</p>}
 
         <div className="flex flex-wrap gap-2">
           <Button variant="outline" onClick={() => navigate('/app/workshop/approvals')}>Back to queue</Button>
@@ -144,7 +143,7 @@ export function ApprovalManagementPage() {
           <Button
             variant="outline"
             disabled={!auth?.jobCardAuthorized}
-            onClick={() => approvalsApi.authorizeJobCard(token!, visitId, branchId).then(() => setMessage('Job card authorization confirmed'))}
+            onClick={() => approvalsApi.authorizeJobCard(token!, visitId, branchId).then(() => appToast.success('Job card authorization confirmed'))}
           >
             Authorize job card
           </Button>

@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { PaginationBar } from '@/components/ui/pagination-bar'
 import { authStorage } from '@/lib/auth-storage'
+import { appToast } from '@/lib/app-toast'
 import { qcApi } from '@/lib/api'
 import { WORKSHOP_QC_BASE } from '@/lib/workshop-paths'
 
@@ -47,7 +48,6 @@ export function QcManagementPage() {
   const [inspectors, setInspectors] = useState<Array<{ id: string; name: string }>>([])
   const [inspectorId, setInspectorId] = useState('')
   const [loading, setLoading] = useState(false)
-  const [message, setMessage] = useState('')
 
   const loadDashboard = useCallback(async () => {
     if (!token) return
@@ -115,7 +115,7 @@ export function QcManagementPage() {
   const assignInspector = async () => {
     if (!token || !qcCaseId || !inspectorId) return
     await qcApi.assign(token, qcCaseId, { inspectorId }, branchId)
-    setMessage('Inspector assigned')
+    appToast.success('Inspector assigned')
     await loadWorkspace(qcCaseId)
   }
 
@@ -141,12 +141,11 @@ export function QcManagementPage() {
             </select>
             <Button variant="outline" onClick={assignInspector} disabled={!inspectorId}>Assign inspector</Button>
             <Button variant="outline" onClick={() => qcApi.start(token!, qcCaseId, branchId).then(() => loadWorkspace(qcCaseId))}>Start QC</Button>
-            <Button onClick={() => qcApi.pass(token!, qcCaseId, {}, branchId).then(() => { setMessage('QC passed — invoice ready'); loadWorkspace(qcCaseId) })}>Pass QC</Button>
+            <Button onClick={() => qcApi.pass(token!, qcCaseId, {}, branchId).then(() => { appToast.success('QC passed — invoice ready'); loadWorkspace(qcCaseId) })}>Pass QC</Button>
             <Button variant="destructive" onClick={() => qcApi.fail(token!, qcCaseId, { createRework: true }, branchId).then(() => loadWorkspace(qcCaseId))}>Fail / Rework</Button>
-            <Button variant="ghost" onClick={() => token && qcApi.openPdf(token, qcCaseId, branchId).catch((e) => setMessage(e instanceof Error ? e.message : 'PDF failed'))}>PDF</Button>
+            <Button variant="ghost" onClick={() => token && qcApi.openPdf(token, qcCaseId, branchId).catch((e) => appToast.error(e instanceof Error ? e.message : 'PDF failed'))}>PDF</Button>
           </div>
         </div>
-        {message && <p className="text-sm text-green-700">{message}</p>}
 
         <div className="grid gap-4 lg:grid-cols-2">
           <Card>
