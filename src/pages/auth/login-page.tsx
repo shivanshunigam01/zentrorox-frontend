@@ -14,6 +14,7 @@ import { StickerBadge } from '@/components/ui/sticker-badge'
 import { authApi } from '@/lib/api'
 import { authStorage } from '@/lib/auth-storage'
 import { isLocalApiEnabled } from '@/lib/local-mode'
+import { normalizeTenantCode } from '@/lib/tenant-code'
 import { IMAGES, GIFS, STICKERS } from '@/lib/assets'
 
 const loginSchema = z.object({
@@ -63,7 +64,10 @@ export function LoginPage() {
     setLoading(true)
     setApiError(null)
     try {
-      const result = await authApi.login(data)
+      const result = await authApi.login({
+        ...data,
+        tenantCode: normalizeTenantCode(data.tenantCode),
+      })
       authStorage.setToken(result.accessToken)
       authStorage.setRefreshToken(result.refreshToken)
       authStorage.setUser({
@@ -158,6 +162,7 @@ export function LoginPage() {
                 <div className="relative">
                   <Building2 className="absolute left-3 top-[34px] h-4 w-4 text-brand-muted z-10" />
                   <Input label="Organization / Tenant Code" placeholder="e.g. DEMO-MOTORS" error={errors.tenantCode?.message} className="pl-10" {...register('tenantCode')} />
+                  <p className="text-xs text-brand-muted mt-1 pl-0.5">Hyphen between words (demo: <span className="font-mono">DEMO-MOTORS</span>)</p>
                 </div>
                 <div className="relative">
                   <Mail className="absolute left-3 top-[34px] h-4 w-4 text-brand-muted z-10" />
