@@ -222,8 +222,28 @@ export interface LoginResponse {
   }
 }
 
+export interface DashboardKpiListItem {
+  id: string
+  title: string
+  subtitle?: string
+  detail?: string
+  status?: string
+  amount?: number
+}
+
+export type DashboardKpiKey =
+  | 'vehiclesIn'
+  | 'todaysBookings'
+  | 'wip'
+  | 'awaitingApproval'
+  | 'partsPending'
+  | 'qcPending'
+  | 'readyForDelivery'
+  | 'revenueToday'
+
 export interface DashboardData {
   kpis: Record<string, number>
+  kpiDetails?: Partial<Record<DashboardKpiKey, DashboardKpiListItem[]>>
   bookingsToday: Array<{
     id: string
     bookingNumber: string

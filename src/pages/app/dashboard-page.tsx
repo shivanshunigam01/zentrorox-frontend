@@ -11,10 +11,16 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { dashboardApi, type DashboardData } from '@/lib/api'
+import {
+  dashboardApi,
+  type DashboardData,
+  type DashboardKpiKey,
+  type DashboardKpiListItem,
+} from '@/lib/api'
 import { authStorage } from '@/lib/auth-storage'
 import { IMAGES, AVATARS } from '@/lib/assets'
 import { WorkshopJourneyGuide } from '@/components/workshop/workshop-journey-guide'
+import { DashboardKpiDetailDialog } from '@/components/dashboard/dashboard-kpi-detail-dialog'
 
 const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
   Car, Calendar, Wrench, Clock, Package, CheckCircle, Truck, IndianRupee,
@@ -51,10 +57,49 @@ function formatKpiValue(key: string, value: number) {
   return value
 }
 
+function resolveKpiItems(data: DashboardData | null, key: DashboardKpiKey): DashboardKpiListItem[] {
+  const fromApi = data?.kpiDetails?.[key]
+  if (fromApi) return fromApi
+
+  if (!data) return []
+
+  if (key === 'todaysBookings') {
+    return data.bookingsToday.map((b) => ({
+      id: b.id,
+      title: b.customer,
+      subtitle: b.vehicle,
+      detail: [b.bookingNumber, b.service, b.time].filter(Boolean).join(' · '),
+      status: b.status,
+    }))
+  }
+
+  const stageByKey: Partial<Record<DashboardKpiKey, string>> = {
+    wip: 'WIP',
+    awaitingApproval: 'APPROVAL',
+    qcPending: 'QC',
+  }
+
+  const visitRows = data.wipVehicles.map((v) => ({
+    id: v.id,
+    title: v.registration,
+    subtitle: v.model,
+    detail: v.jc ? `JC ${v.jc}` : undefined,
+    status: v.status,
+  }))
+
+  if (key === 'vehiclesIn') return visitRows
+  const stage = stageByKey[key]
+  if (stage) return visitRows.filter((v) => v.status === stage)
+  if (key === 'readyForDelivery') return visitRows.filter((v) => v.status === 'DELIVERY')
+
+  return []
+}
+
 export function DashboardPage() {
   const user = authStorage.getUser()
   const [data, setData] = useState<DashboardData | null>(null)
   const [loading, setLoading] = useState(true)
+  const [kpiDialog, setKpiDialog] = useState<{ key: DashboardKpiKey; label: string } | null>(null)
 
   useEffect(() => {
     const token = authStorage.getToken()
@@ -72,8 +117,17 @@ export function DashboardPage() {
   const bookingsToday = data?.bookingsToday ?? []
   const branchName = user?.branches.find((b) => b.id === authStorage.getBranchId())?.name ?? user?.branches[0]?.name
 
+  const dialogItems = kpiDialog ? resolveKpiItems(data, kpiDialog.key) : []
+
   return (
     <div className="space-y-6">
+      <DashboardKpiDetailDialog
+        open={kpiDialog !== null}
+        onOpenChange={(open) => { if (!open) setKpiDialog(null) }}
+        kpiKey={kpiDialog?.key ?? null}
+        title={kpiDialog?.label ?? ''}
+        items={dialogItems}
+      />
       {/* Welcome Banner */}
       <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-brand-charcoal to-brand-charcoal-light p-4 sm:p-6 text-white">
         <img
@@ -110,12 +164,25 @@ export function DashboardPage() {
           const raw = data?.kpis[kpi.key] ?? 0
           const value = 'format' in kpi && kpi.format === 'currency' ? formatKpiValue(kpi.key, Number(raw)) : raw
           return (
-            <Card key={kpi.label} className={`hover:shadow-[var(--shadow-card-hover)] transition-all hover:-translate-y-0.5 bg-gradient-to-br ${kpiGradients[i % kpiGradients.length]} border-0`}>
+            <Card
+              key={kpi.label}
+              role="button"
+              tabIndex={0}
+              onClick={() => setKpiDialog({ key: kpi.key, label: kpi.label })}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault()
+                  setKpiDialog({ key: kpi.key, label: kpi.label })
+                }
+              }}
+              className={`cursor-pointer hover:shadow-[var(--shadow-card-hover)] transition-all hover:-translate-y-0.5 bg-gradient-to-br ${kpiGradients[i % kpiGradients.length]} border-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-yellow`}
+            >
               <CardContent className="p-4">
                 <div className="flex items-start justify-between">
                   <div>
                     <p className="text-xs font-medium text-brand-muted">{kpi.label}</p>
                     <p className="text-2xl font-bold text-brand-charcoal mt-1">{loading ? '—' : value}</p>
+                    <p className="text-[10px] text-brand-muted mt-1">Tap for details</p>
                   </div>
                   <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/80 shadow-sm">
                     <Icon className="h-5 w-5 text-brand-charcoal" />
