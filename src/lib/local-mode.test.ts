@@ -1,6 +1,10 @@
 import { describe, it } from 'node:test'
 import assert from 'node:assert/strict'
-import { assertProductionApiConfig, resolveLocalApiEnabled } from './local-mode.ts'
+import {
+  assertProductionApiConfig,
+  resolveApiBaseUrl,
+  resolveLocalApiEnabled,
+} from './local-mode.ts'
 
 describe('local mode guards', () => {
   it('disables local API in production', () => {
@@ -26,6 +30,13 @@ describe('local mode guards', () => {
           VITE_USE_LOCAL_API: 'true',
         }),
       /cannot be enabled/,
+    )
+  })
+
+  it('maps relative API path on known production host', () => {
+    assert.equal(
+      resolveApiBaseUrl('/api/v1', { prod: true, hostname: 'zentrorox.zentroverse.com' }),
+      'https://zentroroxapi.zentroverse.com/api/v1',
     )
   })
 
