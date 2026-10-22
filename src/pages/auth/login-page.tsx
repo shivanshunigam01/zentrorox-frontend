@@ -15,6 +15,7 @@ import { authApi } from '@/lib/api'
 import { authStorage } from '@/lib/auth-storage'
 import { isLocalApiEnabled } from '@/lib/local-mode'
 import { normalizeTenantCode } from '@/lib/tenant-code'
+import { SEOHead } from '@/seo/SEOHead'
 import { IMAGES, GIFS, STICKERS } from '@/lib/assets'
 
 const loginSchema = z.object({
@@ -93,6 +94,7 @@ export function LoginPage() {
 
   return (
     <div className="min-h-screen flex">
+      <SEOHead pageKey="login" />
       {/* Left Panel */}
       <div className="hidden lg:flex lg:w-1/2 relative overflow-hidden">
         <img src={IMAGES.garageInterior} alt="" className="absolute inset-0 w-full h-full object-cover" />

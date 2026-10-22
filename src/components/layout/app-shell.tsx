@@ -5,6 +5,7 @@ import { TopBar } from './topbar'
 import { SidebarProvider, useSidebar } from './sidebar-context'
 import { WorkshopJourneyGuide } from '@/components/workshop/workshop-journey-guide'
 import { getWorkshopJourneyStepForPath } from '@/lib/workshop-journey'
+import { PrivateAppSEOHead } from '@/seo/SEOHead'
 
 function AppShellContent() {
   const { isOpen, close } = useSidebar()
@@ -24,6 +25,7 @@ function AppShellContent() {
 
   return (
     <div className="app-shell min-h-screen bg-brand-grey relative">
+      <PrivateAppSEOHead />
       {/* Subtle background pattern */}
       <div className="fixed inset-0 pointer-events-none opacity-[0.35]">
         <div className="absolute inset-0 hero-pattern" />

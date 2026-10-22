@@ -3,7 +3,8 @@
   "framework": "vite",
   "buildCommand": "npm run build",
   "env": {
-    "VITE_API_BASE_URL": "https://zentroroxapi.zentroverse.com/api/v1"
+    "VITE_API_BASE_URL": "https://zentroroxapi.zentroverse.com/api/v1",
+    "VITE_PUBLIC_SITE_URL": "https://zentrorox.zentroverse.com"
   },
   "devCommand": "npm run dev",
   "installCommand": "npm install",
@@ -13,8 +14,18 @@
       "source": "/api/v1/:path*",
       "destination": "https://zentroroxapi.zentroverse.com/api/v1/:path*"
     },
+    { "source": "/features", "destination": "/features/index.html" },
+    { "source": "/automotive-workshop-management-software", "destination": "/automotive-workshop-management-software/index.html" },
+    { "source": "/job-card-management-software", "destination": "/job-card-management-software/index.html" },
+    { "source": "/workshop-inventory-management", "destination": "/workshop-inventory-management/index.html" },
+    { "source": "/workshop-billing-software", "destination": "/workshop-billing-software/index.html" },
+    { "source": "/vehicle-inspection-software", "destination": "/vehicle-inspection-software/index.html" },
+    { "source": "/workshop-crm", "destination": "/workshop-crm/index.html" },
+    { "source": "/about", "destination": "/about/index.html" },
+    { "source": "/contact", "destination": "/contact/index.html" },
+    { "source": "/pricing", "destination": "/pricing/index.html" },
     {
-      "source": "/((?!api|assets|images|videos|favicon\\.png|favicon\\.svg|icons\\.svg).*)",
+      "source": "/((?!api|assets|images|videos|og|favicon\\.png|favicon\\.svg|icons\\.svg|robots\\.txt|sitemap\\.xml).*)",
       "destination": "/index.html"
     }
   ],
@@ -25,6 +36,24 @@
         {
           "key": "Cache-Control",
           "value": "public, max-age=31536000, immutable"
+        }
+      ]
+    },
+    {
+      "source": "/app/:path*",
+      "headers": [
+        {
+          "key": "X-Robots-Tag",
+          "value": "noindex, nofollow"
+        }
+      ]
+    },
+    {
+      "source": "/login",
+      "headers": [
+        {
+          "key": "X-Robots-Tag",
+          "value": "noindex, nofollow"
         }
       ]
     }

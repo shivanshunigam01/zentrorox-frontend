@@ -11,6 +11,7 @@ import { Badge } from '@/components/ui/badge'
 import { StickerBadge } from '@/components/ui/sticker-badge'
 import { IMAGES, GIFS, VIDEOS, AVATARS } from '@/lib/assets'
 import { BRAND } from '@/lib/brand'
+import { SEOHead } from '@/seo/SEOHead'
 
 const stats = [
   { value: '500+', label: 'Workshops Connected', icon: Building2 },
@@ -142,6 +143,7 @@ function HeroVideo() {
 export function LandingPage() {
   return (
     <div>
+      <SEOHead pageKey="home" />
       {/* Hero */}
       <section className="relative overflow-hidden bg-gradient-to-b from-brand-grey to-white hero-pattern">
         <div className="absolute inset-0 opacity-[0.03]">

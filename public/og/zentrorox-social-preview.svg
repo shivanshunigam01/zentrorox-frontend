@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630" role="img" aria-label="ZENTROROX automotive workshop management software">
+  <rect width="1200" height="630" fill="#171717"/>
+  <rect x="0" y="480" width="1200" height="150" fill="#FFC400"/>
+  <text x="80" y="280" fill="#FFFFFF" font-family="Poppins, Arial, sans-serif" font-size="72" font-weight="700">ZENTROROX</text>
+  <text x="80" y="360" fill="#E5E7EB" font-family="Poppins, Arial, sans-serif" font-size="36" font-weight="500">Automotive Workshop Management Software</text>
+  <text x="80" y="540" fill="#171717" font-family="Poppins, Arial, sans-serif" font-size="28" font-weight="600">Bookings · Job Cards · Parts · Billing · Delivery</text>
+</svg>

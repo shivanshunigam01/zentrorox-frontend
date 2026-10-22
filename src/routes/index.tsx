@@ -3,6 +3,8 @@ import { PublicLayout } from '@/components/layout/public-layout'
 import { AppShell } from '@/components/layout/app-shell'
 import { RequireAuth } from '@/components/auth/require-auth'
 import { LandingPage } from '@/pages/public/landing-page'
+import { MarketingSeoPage } from '@/pages/public/marketing-seo-page'
+import { NotFoundPage } from '@/pages/public/not-found-page'
 import { LoginPage } from '@/pages/auth/login-page'
 import { DashboardPage } from '@/pages/app/dashboard-page'
 import { CustomersPage } from '@/pages/app/customers-page'
@@ -41,6 +43,17 @@ export function AppRoutes() {
     <Routes>
       <Route element={<PublicLayout />}>
         <Route index element={<LandingPage />} />
+        <Route path="features" element={<MarketingSeoPage pageKey="features" />} />
+        <Route path="automotive-workshop-management-software" element={<MarketingSeoPage pageKey="workshop" />} />
+        <Route path="job-card-management-software" element={<MarketingSeoPage pageKey="job-cards" />} />
+        <Route path="workshop-inventory-management" element={<MarketingSeoPage pageKey="inventory" />} />
+        <Route path="workshop-billing-software" element={<MarketingSeoPage pageKey="billing" />} />
+        <Route path="vehicle-inspection-software" element={<MarketingSeoPage pageKey="inspection" />} />
+        <Route path="workshop-crm" element={<MarketingSeoPage pageKey="crm" />} />
+        <Route path="about" element={<MarketingSeoPage pageKey="about" />} />
+        <Route path="contact" element={<MarketingSeoPage pageKey="contact" />} />
+        <Route path="pricing" element={<MarketingSeoPage pageKey="pricing" />} />
+        <Route path="*" element={<NotFoundPage />} />
       </Route>
       <Route path="/login" element={<LoginPage />} />
 
@@ -125,7 +138,6 @@ export function AppRoutes() {
         <Route path="settings" element={<SettingsLivePage />} />
       </Route>
 
-      <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   )
 }

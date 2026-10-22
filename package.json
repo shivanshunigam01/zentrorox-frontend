@@ -5,8 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc && vite build",
-    "test": "tsx --test src/lib/local-mode.test.ts",
+    "build": "tsc && vite build && node scripts/generate-seo-artifacts.mjs",
+    "test": "tsx --test src/lib/local-mode.test.ts src/seo/seo-pages.test.ts",
     "preview": "vite preview"
   },
   "devDependencies": {

@@ -100,9 +100,9 @@ export const SIDEBAR_NAV: NavItem[] = [
 
 export const PUBLIC_NAV = [
   { label: 'Home', href: '/' },
-  { label: 'Solutions', href: '/#solutions' },
-  { label: 'Features', href: '/#features' },
-  { label: 'Pricing', href: '/#pricing' },
-  { label: 'About', href: '/#about' },
-  { label: 'Contact', href: '/#contact' },
+  { label: 'Features', href: '/features' },
+  { label: 'Workshop', href: '/automotive-workshop-management-software' },
+  { label: 'Pricing', href: '/pricing' },
+  { label: 'About', href: '/about' },
+  { label: 'Contact', href: '/contact' },
 ]

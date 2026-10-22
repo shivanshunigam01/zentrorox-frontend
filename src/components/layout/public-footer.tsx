@@ -35,10 +35,10 @@ export function PublicFooter() {
               📦 Product
             </h4>
             <ul className="space-y-2.5 text-sm text-white/60">
-              <li><a href="/#features" className="hover:text-brand-yellow transition-colors">Features</a></li>
-              <li><a href="/#solutions" className="hover:text-brand-yellow transition-colors">Solutions</a></li>
-              <li><a href="/#pricing" className="hover:text-brand-yellow transition-colors">Pricing</a></li>
-              <li><a href="/#integrations" className="hover:text-brand-yellow transition-colors">Integrations</a></li>
+              <li><a href="/features" className="hover:text-brand-yellow transition-colors">Features</a></li>
+              <li><a href="/automotive-workshop-management-software" className="hover:text-brand-yellow transition-colors">Workshop ERP</a></li>
+              <li><a href="/pricing" className="hover:text-brand-yellow transition-colors">Pricing</a></li>
+              <li><a href="/contact" className="hover:text-brand-yellow transition-colors">Contact</a></li>
             </ul>
           </div>
 
@@ -47,10 +47,10 @@ export function PublicFooter() {
               🔧 Modules
             </h4>
             <ul className="space-y-2.5 text-sm text-white/60">
-              <li>Workshop Management</li>
-              <li>Spare Parts & Inventory</li>
-              <li>Billing & Payments</li>
-              <li>CRM & PSF</li>
+              <li><a href="/automotive-workshop-management-software" className="hover:text-brand-yellow transition-colors">Workshop Management</a></li>
+              <li><a href="/workshop-inventory-management" className="hover:text-brand-yellow transition-colors">Spare Parts & Inventory</a></li>
+              <li><a href="/workshop-billing-software" className="hover:text-brand-yellow transition-colors">Billing & Payments</a></li>
+              <li><a href="/workshop-crm" className="hover:text-brand-yellow transition-colors">CRM & PSF</a></li>
             </ul>
           </div>
 
