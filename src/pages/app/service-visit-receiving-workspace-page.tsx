@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { CheckCircle2, ClipboardCheck, Printer, Save } from 'lucide-react'
+import { CheckCircle2, ClipboardCheck, Printer, Save, Trash2 } from 'lucide-react'
 import { PageBanner } from '@/components/ui/page-banner'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -9,8 +9,10 @@ import { Badge } from '@/components/ui/badge'
 import { authStorage } from '@/lib/auth-storage'
 import { receivingApi, serviceVisitsApi, vocApi } from '@/lib/api'
 import { MultiImageUpload } from '@/components/service-visit/multi-image-upload'
+import { VehiclePhotoCapture } from '@/components/ui/vehicle-photo-capture'
 import { PrintableReceivingReport, type ReceivingReportData } from '@/components/service-visit/printable-receiving-report'
 import { StickyActionBar, WORKSPACE_ACTION_BAR_PAD } from '@/components/ui/sticky-action-bar'
+import { ModuleFormDialog } from '@/components/ui/module-form-dialog'
 import { appToast } from '@/lib/app-toast'
 import { cn } from '@/lib/utils'
 
@@ -52,9 +54,13 @@ export function ServiceVisitReceivingWorkspacePage() {
   const [booking, setBooking] = useState<Record<string, unknown> | null>(null)
   const [pickup, setPickup] = useState<Record<string, unknown> | null>(null)
   const [receiving, setReceiving] = useState<Record<string, unknown>>({})
-  const [media, setMedia] = useState<Array<{ url?: string; imageCategory?: string }>>([])
+  const [media, setMedia] = useState<Array<{ id?: string; url?: string; imageCategory?: string }>>([])
   const [complaints, setComplaints] = useState<ComplaintRow[]>([])
   const [vocConfirmed, setVocConfirmed] = useState(false)
+  const [removeComplaintIdx, setRemoveComplaintIdx] = useState<number | null>(null)
+  const [gateAutoStatus, setGateAutoStatus] = useState<'idle' | 'pending' | 'saving' | 'saved' | 'error'>('idle')
+  const gateAutosaveReady = useRef(false)
+  const gateSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const [gate, setGate] = useState({
     observedArrivalAt: '',
@@ -70,9 +76,12 @@ export function ServiceVisitReceivingWorkspacePage() {
     customerAcknowledged: false,
   })
   const [inventory, setInventory] = useState<InventoryRow[]>([])
+  const [vehicleImageUrl, setVehicleImageUrl] = useState('')
+  const [vehicleImagePublicId, setVehicleImagePublicId] = useState('')
 
   const load = useCallback(async () => {
     if (!token || !visitId) return
+    gateAutosaveReady.current = false
     setLoading(true)
     setError(null)
     try {
@@ -83,7 +92,7 @@ export function ServiceVisitReceivingWorkspacePage() {
       setPickup((ws.pickup as Record<string, unknown>) ?? null)
       const rec = (ws.receiving as Record<string, unknown>) ?? {}
       setReceiving(rec)
-      setMedia((ws.media as Array<{ url?: string; imageCategory?: string }>) ?? [])
+      setMedia((ws.media as Array<{ id?: string; url?: string; imageCategory?: string }>) ?? [])
 
       setGate({
         observedArrivalAt: rec.observedArrivalAt
@@ -120,16 +129,57 @@ export function ServiceVisitReceivingWorkspacePage() {
       }
       setVocConfirmed(voc?.confirmationStatus === 'CONFIRMED')
 
+      const veh = v.vehicleId as { imageUrl?: string; imagePublicId?: string } | undefined
+      setVehicleImageUrl(String(veh?.imageUrl ?? ''))
+      setVehicleImagePublicId(String(veh?.imagePublicId ?? ''))
+
       const ph = await serviceVisitsApi.phaseEligibility(token, visitId, branchId)
       setPhase({ readyForInspection: ph.readyForInspection, blockers: ph.blockers })
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to load workspace')
     } finally {
       setLoading(false)
+      gateAutosaveReady.current = true
     }
   }, [token, visitId, branchId])
 
   useEffect(() => { load() }, [load])
+
+  const locked = receiving.receivingStatus === 'COMPLETED' || receiving.receivingStatus === 'EXCEPTION'
+
+  useEffect(() => {
+    if (!gateAutosaveReady.current || locked || !token || !visitId || loading) return
+
+    if (gateSaveTimer.current) clearTimeout(gateSaveTimer.current)
+    setGateAutoStatus('pending')
+
+    gateSaveTimer.current = setTimeout(() => {
+      setGateAutoStatus('saving')
+      receivingApi.saveDraft(token, visitId, buildGatePayload(), branchId)
+        .then(() => setGateAutoStatus('saved'))
+        .catch(() => setGateAutoStatus('error'))
+    }, 800)
+
+    return () => {
+      if (gateSaveTimer.current) clearTimeout(gateSaveTimer.current)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- autosave only on gate field edits
+  }, [gate, locked, token, visitId, branchId, loading])
+
+  const buildGatePayload = () => ({
+    observedArrivalAt: gate.observedArrivalAt ? new Date(gate.observedArrivalAt).toISOString() : undefined,
+    odometer: gate.odometer !== '' ? Number(gate.odometer) : undefined,
+    fuelLevel: gate.fuelLevel || undefined,
+    observedEngineNo: gate.observedEngineNo || undefined,
+    observedChassisNo: gate.observedChassisNo || undefined,
+    engineMatchStatus: gate.engineMatchStatus,
+    chassisMatchStatus: gate.chassisMatchStatus,
+    keyCount: gate.keyCount !== '' ? Number(gate.keyCount) : undefined,
+    keyReceived: gate.keyCount !== '' ? Number(gate.keyCount) > 0 : undefined,
+    vehicleConditionRemarks: gate.vehicleConditionRemarks || undefined,
+    receivingRemarks: gate.receivingRemarks || undefined,
+    customerAcknowledged: gate.customerAcknowledged,
+  })
 
   const buildDraftPayload = () => ({
     observedArrivalAt: gate.observedArrivalAt ? new Date(gate.observedArrivalAt).toISOString() : undefined,
@@ -163,22 +213,25 @@ export function ServiceVisitReceivingWorkspacePage() {
     }
   }
 
+  const complaintsForApi = (list: ComplaintRow[]) =>
+    list
+      .filter((c) => c.description.trim())
+      .map((c) => ({
+        title: c.title,
+        description: c.description,
+        symptoms: c.symptoms,
+        source: c.source ?? 'ADVISOR',
+        requestedWork: c.requestedWork,
+        priority: c.priority,
+        customerRemarks: c.customerRemarks,
+      }))
+
   const saveVoc = async () => {
     if (!token || !visitId) return
     setSaving('voc')
     try {
       await appToast.run('Saving VOC…', async () => {
-        await vocApi.save(token, visitId, {
-          complaints: complaints.filter((c) => c.description.trim()).map((c) => ({
-            title: c.title,
-            description: c.description,
-            symptoms: c.symptoms,
-            source: c.source ?? 'ADVISOR',
-            requestedWork: c.requestedWork,
-            priority: c.priority,
-            customerRemarks: c.customerRemarks,
-          })),
-        }, branchId)
+        await vocApi.save(token, visitId, { complaints: complaintsForApi(complaints) }, branchId)
         await load()
       }, { success: 'VOC saved' })
     } finally {
@@ -186,22 +239,44 @@ export function ServiceVisitReceivingWorkspacePage() {
     }
   }
 
+  const executeRemoveComplaint = async (idx: number) => {
+    if (vocConfirmed || !token || !visitId) return
+
+    const next = complaints.filter((_, i) => i !== idx)
+    const normalized = next.length > 0 ? next : [{ description: '', source: 'ADVISOR' }]
+    setComplaints(normalized)
+    setRemoveComplaintIdx(null)
+
+    setSaving('voc')
+    try {
+      await vocApi.save(token, visitId, { complaints: complaintsForApi(normalized) }, branchId)
+      appToast.success('Complaint removed')
+      await load()
+    } catch (e) {
+      appToast.error(e instanceof Error ? e.message : 'Could not remove complaint')
+      await load()
+    } finally {
+      setSaving(null)
+    }
+  }
+
+  const requestRemoveComplaint = (idx: number) => {
+    if (vocConfirmed) return
+    const row = complaints[idx]
+    const hasContent = Boolean(row.title?.trim() || row.description?.trim() || row.symptoms?.trim())
+    if (!hasContent) {
+      void executeRemoveComplaint(idx)
+      return
+    }
+    setRemoveComplaintIdx(idx)
+  }
+
   const confirmVoc = async () => {
     if (!token || !visitId) return
     setSaving('confirm')
     try {
       await appToast.run('Confirming VOC…', async () => {
-        await vocApi.save(token, visitId, {
-          complaints: complaints.filter((c) => c.description.trim()).map((c) => ({
-            title: c.title,
-            description: c.description,
-            symptoms: c.symptoms,
-            source: c.source ?? 'ADVISOR',
-            requestedWork: c.requestedWork,
-            priority: c.priority,
-            customerRemarks: c.customerRemarks,
-          })),
-        }, branchId)
+        await vocApi.save(token, visitId, { complaints: complaintsForApi(complaints) }, branchId)
         await vocApi.confirm(token, visitId, branchId)
         await load()
       }, { success: 'VOC confirmed by service advisor' })
@@ -249,7 +324,22 @@ export function ServiceVisitReceivingWorkspacePage() {
   }
 
   const vehicle = (visit as { vehicleId?: Record<string, unknown> })?.vehicleId
-  const locked = receiving.receivingStatus === 'COMPLETED' || receiving.receivingStatus === 'EXCEPTION'
+
+  const persistVehiclePhoto = async (url: string, publicId: string) => {
+    if (!token || !visitId || locked) return
+    setVehicleImageUrl(url)
+    setVehicleImagePublicId(publicId)
+    try {
+      await serviceVisitsApi.update(token, visitId, {
+        vehicleImageUrl: url,
+        vehicleImagePublicId: publicId,
+      }, branchId)
+      appToast.success('Primary vehicle photo saved')
+      await load()
+    } catch (e) {
+      appToast.error(e instanceof Error ? e.message : 'Could not save vehicle photo on visit')
+    }
+  }
 
   if (!visitId) return null
 
@@ -297,7 +387,22 @@ export function ServiceVisitReceivingWorkspacePage() {
       </Card>
 
       <Card>
-        <CardHeader><CardTitle className="text-base">3. Gate-In verification</CardTitle></CardHeader>
+        <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0">
+          <CardTitle className="text-base">3. Gate-In verification</CardTitle>
+          {!locked && gateAutoStatus !== 'idle' && (
+            <span className={cn(
+              'text-xs font-medium',
+              gateAutoStatus === 'saved' && 'text-green-700',
+              gateAutoStatus === 'error' && 'text-brand-danger',
+              (gateAutoStatus === 'pending' || gateAutoStatus === 'saving') && 'text-brand-muted',
+            )}>
+              {gateAutoStatus === 'pending' && 'Unsaved changes…'}
+              {gateAutoStatus === 'saving' && 'Saving…'}
+              {gateAutoStatus === 'saved' && 'Saved'}
+              {gateAutoStatus === 'error' && 'Could not save — use Save draft'}
+            </span>
+          )}
+        </CardHeader>
         <CardContent className="grid sm:grid-cols-2 gap-3">
           <Input label="Actual arrival" type="datetime-local" value={gate.observedArrivalAt} disabled={locked}
             onChange={(e) => setGate({ ...gate, observedArrivalAt: e.target.value })} />
@@ -344,14 +449,51 @@ export function ServiceVisitReceivingWorkspacePage() {
               Master engine: {String(vehicle.engineNo ?? '—')} · Master chassis: {String(vehicle.chassisNo ?? vehicle.vin ?? '—')}
             </p>
           )}
+          <div className="sm:col-span-2">
+            <VehiclePhotoCapture
+              label="Primary vehicle photo (at receiving)"
+              imageAlt="Vehicle at receiving"
+              entityType="service_visit"
+              entityId={visitId}
+              folder="receiving"
+              imageCategory="RECEIVING"
+              imageUrl={vehicleImageUrl || undefined}
+              className={locked ? 'opacity-60 pointer-events-none' : undefined}
+              onUploaded={({ url, publicId }) => void persistVehiclePhoto(url, publicId)}
+              onCleared={async () => {
+                if (!token || !visitId || locked) return
+                setVehicleImageUrl('')
+                setVehicleImagePublicId('')
+                try {
+                  await serviceVisitsApi.update(token, visitId, {
+                    vehicleImageUrl: '',
+                    vehicleImagePublicId: '',
+                  }, branchId)
+                  await load()
+                } catch {
+                  appToast.error('Could not remove vehicle photo')
+                }
+              }}
+            />
+            <p className="text-xs text-muted-foreground mt-1">
+              Optional cover shot on the vehicle master. Add unlimited angles in section 5 below.
+            </p>
+          </div>
         </CardContent>
       </Card>
 
       <Card>
-        <CardHeader><CardTitle className="text-base">4. Inventory checklist</CardTitle></CardHeader>
+        <CardHeader>
+          <CardTitle className="text-base">4. Inventory checklist (optional)</CardTitle>
+          <p className="text-sm text-muted-foreground font-normal">
+            Fill when you need a formal handover record — you can complete receiving without ticking every line.
+          </p>
+        </CardHeader>
         <CardContent className="space-y-3">
           {inventory.length === 0 && (
-            <p className="text-sm text-amber-700">No inventory master items. Add INVENTORY_* masters and re-open this visit.</p>
+            <p className="text-sm text-muted-foreground">
+              No checklist lines loaded. Add INVENTORY_* masters to enable items, or skip this section.
+            </p>
           )}
           {inventory.map((row, idx) => (
             <div key={`${row.label}-${idx}`} className="grid sm:grid-cols-4 gap-2 border rounded-lg p-2 text-sm">
@@ -382,23 +524,65 @@ export function ServiceVisitReceivingWorkspacePage() {
       </Card>
 
       <Card>
-        <CardHeader><CardTitle className="text-base">5. Vehicle images</CardTitle></CardHeader>
+        <CardHeader>
+          <CardTitle className="text-base">5. Vehicle images (Cloudinary)</CardTitle>
+          <p className="text-sm text-muted-foreground font-normal">
+            Add as many photos as you need. Use Camera repeatedly or Gallery to select multiple files at once.
+          </p>
+        </CardHeader>
         <CardContent className="space-y-4">
-          {token && visitId && (
+          {token && visitId && !locked && (
             <>
-              <MultiImageUpload token={token} visitId={visitId} category="GATE_IN" label="Gate-In photos" onUploaded={() => load()} />
-              <MultiImageUpload token={token} visitId={visitId} category="DAMAGE" label="Damage photos" onUploaded={() => load()} />
+              <MultiImageUpload
+                token={token}
+                visitId={visitId}
+                category="RECEIVING"
+                folder="receiving"
+                existingImages={media}
+                label="Vehicle at receiving (all angles)"
+                onUploaded={() => void load()}
+              />
+              <MultiImageUpload
+                token={token}
+                visitId={visitId}
+                category="GATE_IN"
+                folder="receiving"
+                existingImages={media}
+                label="Gate-in / arrival condition"
+                onUploaded={() => void load()}
+              />
+              <MultiImageUpload
+                token={token}
+                visitId={visitId}
+                category="ODOMETER"
+                folder="receiving"
+                existingImages={media}
+                label="Odometer & dashboard"
+                onUploaded={() => void load()}
+              />
+              <MultiImageUpload
+                token={token}
+                visitId={visitId}
+                category="DAMAGE"
+                folder="receiving"
+                existingImages={media}
+                label="Scratches & damage"
+                onUploaded={() => void load()}
+              />
             </>
           )}
-          {media.length > 0 && (
-            <div className="grid grid-cols-4 gap-2">
+          {locked && media.length > 0 && (
+            <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-5 gap-2">
               {media.map((m, i) => (
-                <a key={i} href={m.url} target="_blank" rel="noreferrer" className="block">
-                  <img src={m.url} alt="" className="h-20 w-full object-cover rounded border" />
-                  <span className="text-[10px]">{m.imageCategory}</span>
+                <a key={m.id ?? i} href={m.url} target="_blank" rel="noreferrer" className="block">
+                  <img src={m.url} alt="" className="h-24 w-full object-cover rounded border" />
+                  <span className="text-[10px] text-muted-foreground">{m.imageCategory ?? 'IMAGE'}</span>
                 </a>
               ))}
             </div>
+          )}
+          {locked && media.length === 0 && (
+            <p className="text-sm text-muted-foreground">Receiving is locked — no photos were uploaded.</p>
           )}
         </CardContent>
       </Card>
@@ -408,7 +592,23 @@ export function ServiceVisitReceivingWorkspacePage() {
         <CardContent className="space-y-3">
           {vocConfirmed && <Badge variant="success">Confirmed</Badge>}
           {complaints.map((c, idx) => (
-            <div key={idx} className="border rounded-lg p-3 space-y-2">
+            <div key={idx} className="border rounded-lg p-3 space-y-2 relative">
+              {!vocConfirmed && (
+                <div className="flex items-center justify-between gap-2 mb-1">
+                  <span className="text-xs font-medium text-brand-muted">Complaint {idx + 1}</span>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="text-brand-danger hover:text-brand-danger hover:bg-red-50 h-8"
+                    disabled={saving !== null}
+                    onClick={() => requestRemoveComplaint(idx)}
+                  >
+                    <Trash2 className="h-4 w-4 mr-1" />
+                    Remove
+                  </Button>
+                </div>
+              )}
               <Input label="Title" disabled={vocConfirmed} value={c.title ?? ''}
                 onChange={(e) => {
                   const next = [...complaints]
@@ -475,6 +675,46 @@ export function ServiceVisitReceivingWorkspacePage() {
           Customer acknowledgment
         </label>
       </StickyActionBar>
+
+      <ModuleFormDialog
+        open={removeComplaintIdx !== null}
+        onOpenChange={(open) => {
+          if (!open) setRemoveComplaintIdx(null)
+        }}
+        title="Remove complaint?"
+        description="This complaint will be removed from the visit VOC. You can add complaints again before you confirm VOC."
+        size="md"
+        footer={
+          <>
+            <Button type="button" variant="outline" disabled={saving !== null} onClick={() => setRemoveComplaintIdx(null)}>
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              disabled={saving !== null}
+              onClick={() => {
+                if (removeComplaintIdx !== null) void executeRemoveComplaint(removeComplaintIdx)
+              }}
+            >
+              {saving === 'voc' ? 'Removing…' : 'Remove complaint'}
+            </Button>
+          </>
+        }
+      >
+        {removeComplaintIdx !== null && (
+          <div className="space-y-2 text-sm">
+            <p className="text-brand-muted">
+              You are about to remove <strong>Complaint {removeComplaintIdx + 1}</strong> from this visit.
+            </p>
+            {complaints[removeComplaintIdx]?.description?.trim() ? (
+              <p className="rounded-lg border border-brand-border bg-brand-grey/50 p-3 text-brand-foreground">
+                {complaints[removeComplaintIdx].description.trim()}
+              </p>
+            ) : null}
+          </div>
+        )}
+      </ModuleFormDialog>
 
       <PrintableReceivingReport ref={printRef} data={reportData} />
     </div>

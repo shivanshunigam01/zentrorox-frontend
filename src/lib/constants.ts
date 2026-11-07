@@ -94,7 +94,14 @@ export const SIDEBAR_NAV: NavItem[] = [
   },
   { label: 'Reports', path: '/app/reports', icon: 'BarChart3' },
   { label: 'Masters', path: '/app/masters', icon: 'Database' },
-  { label: 'Administration', path: '/app/administration', icon: 'Settings' },
+  {
+    label: 'Administration',
+    icon: 'Settings',
+    children: [
+      { label: 'Users & setup', path: '/app/administration' },
+      { label: 'Activity log', path: '/app/administration/activity-log' },
+    ],
+  },
   { label: 'Settings', path: '/app/settings', icon: 'SlidersHorizontal' },
 ]
 

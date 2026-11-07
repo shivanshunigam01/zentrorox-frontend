@@ -8,14 +8,14 @@ import { PageBanner } from '@/components/ui/page-banner'
 import { MasterSelect } from '@/components/ui/master-select'
 import { ModuleFormDialog } from '@/components/ui/module-form-dialog'
 import { PaginationBar, type PaginationMeta } from '@/components/ui/pagination-bar'
-import { vehiclesApi, customersApi, type VehicleItem, type CustomerItem } from '@/lib/api'
+import { CustomerSelect } from '@/components/ui/customer-select'
+import { vehiclesApi, type VehicleItem } from '@/lib/api'
 import { authStorage } from '@/lib/auth-storage'
 import { ILLUSTRATIONS, STICKERS } from '@/lib/assets'
 
 export function VehiclesPage() {
   const [searchParams] = useSearchParams()
   const [vehicles, setVehicles] = useState<VehicleItem[]>([])
-  const [customers, setCustomers] = useState<CustomerItem[]>([])
   const [search, setSearch] = useState(searchParams.get('q') ?? '')
   const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
@@ -39,13 +39,9 @@ export function VehiclesPage() {
     if (!token) return
     setLoading(true)
     try {
-      const [v, c] = await Promise.all([
-        vehiclesApi.list(token, { search: q || undefined, page: p, limit: l }, branchId),
-        customersApi.list(token, { limit: 500 }, branchId),
-      ])
+      const v = await vehiclesApi.list(token, { search: q || undefined, page: p, limit: l }, branchId)
       setVehicles(v.items)
       setPagination(v.pagination)
-      setCustomers(c.items)
     } finally {
       setLoading(false)
     }
@@ -58,6 +54,7 @@ export function VehiclesPage() {
     const token = authStorage.getToken()
     const branchId = authStorage.getBranchId() ?? undefined
     if (!token) return
+    if (!form.customerId) return
     setSaving(true)
     try {
       await vehiclesApi.create(token, {
@@ -109,16 +106,16 @@ export function VehiclesPage() {
         }
       >
         <form id="vehicle-form" onSubmit={handleCreate} className="grid sm:grid-cols-2 gap-4">
-          <div className="space-y-1.5 sm:col-span-2">
-            <label className="text-sm font-medium">Customer *</label>
-            <select required value={form.customerId} onChange={(e) => setForm({ ...form, customerId: e.target.value })} className="flex h-10 w-full rounded-lg border border-brand-border px-3 text-sm">
-              <option value="">Select customer</option>
-              {customers.map((c) => <option key={c.id} value={c.id}>{c.name} — {c.mobile}</option>)}
-            </select>
-          </div>
-          <Input label="Registration No. *" required value={form.registrationNo} onChange={(e) => setForm({ ...form, registrationNo: e.target.value })} />
-          <MasterSelect category="VEHICLE_MAKE" label="Make *" required value={form.make} onChange={(v) => setForm({ ...form, make: v, model: '' })} />
-          <MasterSelect category="VEHICLE_MODEL" label="Model *" required value={form.model} onChange={(v) => setForm({ ...form, model: v })} parentCode={form.make} />
+          <CustomerSelect
+            className="sm:col-span-2"
+            active={showForm}
+            required
+            value={form.customerId}
+            onChange={(customerId) => setForm({ ...form, customerId })}
+          />
+          <Input label="Registration No." required value={form.registrationNo} onChange={(e) => setForm({ ...form, registrationNo: e.target.value })} />
+          <MasterSelect category="VEHICLE_MAKE" label="Make" required value={form.make} onChange={(v) => setForm({ ...form, make: v, model: '' })} />
+          <MasterSelect category="VEHICLE_MODEL" label="Model" required value={form.model} onChange={(v) => setForm({ ...form, model: v })} parentCode={form.make} />
           <Input label="Variant" value={form.variant} onChange={(e) => setForm({ ...form, variant: e.target.value })} />
           <MasterSelect category="FUEL_TYPE" label="Fuel Type" value={form.fuelType} onChange={(v) => setForm({ ...form, fuelType: v })} />
           <Input label="Odometer (km)" type="number" value={form.odometer} onChange={(e) => setForm({ ...form, odometer: e.target.value })} />

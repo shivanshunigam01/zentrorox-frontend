@@ -9,6 +9,7 @@ import { PageBanner } from '@/components/ui/page-banner'
 import { ModuleFormDialog } from '@/components/ui/module-form-dialog'
 import { PaginationBar, type PaginationMeta } from '@/components/ui/pagination-bar'
 import { customersApi, type CustomerItem } from '@/lib/api'
+import { VehiclePhotoCapture } from '@/components/ui/vehicle-photo-capture'
 import { authStorage } from '@/lib/auth-storage'
 import { AVATARS, ILLUSTRATIONS, STICKERS } from '@/lib/assets'
 
@@ -18,7 +19,27 @@ export function CustomersPage() {
   const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
   const [saving, setSaving] = useState(false)
-  const [form, setForm] = useState({ name: '', mobile: '', email: '', type: 'INDIVIDUAL', city: '' })
+  const [form, setForm] = useState({
+    name: '',
+    mobile: '',
+    email: '',
+    type: 'INDIVIDUAL',
+    city: '',
+    imageUrl: '',
+    imagePublicId: '',
+  })
+
+  const resetForm = () => {
+    setForm({
+      name: '',
+      mobile: '',
+      email: '',
+      type: 'INDIVIDUAL',
+      city: '',
+      imageUrl: '',
+      imagePublicId: '',
+    })
+  }
   const [page, setPage] = useState(1)
   const [limit, setLimit] = useState(10)
   const [pagination, setPagination] = useState<PaginationMeta>({ page: 1, limit: 10, total: 0, totalPages: 1 })
@@ -87,9 +108,17 @@ export function CustomersPage() {
             if (!token) return
             setSaving(true)
             try {
-              await customersApi.create(token, form)
+              const payload: Record<string, unknown> = {
+                name: form.name,
+                mobile: form.mobile,
+                type: form.type,
+                ...(form.email.trim() && { email: form.email.trim() }),
+                ...(form.city.trim() && { city: form.city.trim() }),
+                ...(form.imageUrl && { imageUrl: form.imageUrl, imagePublicId: form.imagePublicId || undefined }),
+              }
+              await customersApi.create(token, payload)
               setShowForm(false)
-              setForm({ name: '', mobile: '', email: '', type: 'INDIVIDUAL', city: '' })
+              resetForm()
               await load(search, page, limit)
             } finally {
               setSaving(false)
@@ -110,6 +139,15 @@ export function CustomersPage() {
             </select>
           </div>
           <Input label="City" value={form.city} onChange={(e) => setForm({ ...form, city: e.target.value })} />
+          <VehiclePhotoCapture
+            label="Customer photo (optional)"
+            imageAlt="Customer"
+            entityType="customer"
+            folder="customers"
+            imageUrl={form.imageUrl || undefined}
+            onUploaded={({ url, publicId }) => setForm((prev) => ({ ...prev, imageUrl: url, imagePublicId: publicId }))}
+            onCleared={() => setForm((prev) => ({ ...prev, imageUrl: '', imagePublicId: '' }))}
+          />
         </form>
       </ModuleFormDialog>
 
@@ -155,7 +193,11 @@ export function CustomersPage() {
                     <tr key={c.id} className="border-b border-brand-border hover:bg-brand-yellow/5 transition-colors">
                       <td className="px-5 py-4">
                         <div className="flex items-center gap-3">
-                          <img src={AVATARS[i % AVATARS.length]} alt="" className="h-10 w-10 rounded-full ring-2 ring-brand-yellow/20 object-cover" />
+                          <img
+                            src={c.imageUrl || AVATARS[i % AVATARS.length]}
+                            alt=""
+                            className="h-10 w-10 rounded-full ring-2 ring-brand-yellow/20 object-cover"
+                          />
                           <span className="font-medium">{c.name}</span>
                         </div>
                       </td>

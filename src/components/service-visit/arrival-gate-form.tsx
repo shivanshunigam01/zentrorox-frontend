@@ -137,6 +137,7 @@ export function ArrivalGateForm({
           label="Vehicle Photo * (capture at gate-in)"
           imageUrl={form.vehicleImageUrl || undefined}
           entityId={visit.vehicleId}
+          imageCategory="GATE_IN"
           onUploaded={({ url, publicId }) => {
             setError(null)
             setForm({

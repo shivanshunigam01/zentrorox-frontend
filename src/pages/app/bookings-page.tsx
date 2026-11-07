@@ -12,6 +12,7 @@ import { Input } from '@/components/ui/input'
 import { PrintableBookingSlip } from '@/components/documents/printable-booking-slip'
 import { bookingsApi, customersApi, vehiclesApi, type BookingItem, type BookingDetail, type CustomerItem, type VehicleItem } from '@/lib/api'
 import { authStorage } from '@/lib/auth-storage'
+import { appToast } from '@/lib/app-toast'
 import { captureGeoLocation } from '@/lib/geolocation'
 import {
   formatPreferredSlotDisplay,
@@ -207,15 +208,37 @@ export function BookingsPage() {
     }
   }
 
-  const handleStartVisit = async (bookingId: string) => {
+  const goToVehicleReceiving = (visitId: string) => {
+    navigate(`/app/service-visits/${visitId}/receiving`)
+  }
+
+  const handleStartVisit = async (bookingId: string, existingVisitId?: string) => {
     if (!token || !branchId) return
+    if (existingVisitId) {
+      goToVehicleReceiving(existingVisitId)
+      return
+    }
     setStartingVisit(bookingId)
     try {
-      const visit = await bookingsApi.createVisitFromBooking(token, bookingId, branchId)
-      const currentStage = visit.stages.find((s) => s.status === 'current')
-      const path = currentStage?.path ?? 'gate-in'
-      navigate(`/app/service-visits/${visit.id}/${path}`)
+      const visit = await appToast.run('Opening vehicle receiving…', () =>
+        bookingsApi.createVisitFromBooking(token, bookingId, branchId),
+      )
+      goToVehicleReceiving(visit.id)
       await load()
+    } catch (e) {
+      const message = e instanceof Error ? e.message : 'Could not open service visit'
+      try {
+        const detail = await bookingsApi.get(token, bookingId, branchId)
+        if (detail.serviceVisit?.id) {
+          appToast.info('Visit already exists — opening vehicle receiving')
+          goToVehicleReceiving(detail.serviceVisit.id)
+          await load()
+          return
+        }
+      } catch {
+        /* fall through */
+      }
+      appToast.error(message)
     } finally {
       setStartingVisit(null)
     }
@@ -677,10 +700,19 @@ export function BookingsPage() {
                     <Button variant="outline" size="sm" className="flex-1" disabled={loadingPrint === b.id} onClick={() => openPrintSlip(b.id)}>
                       <Printer className="h-3.5 w-3.5" /> Slip
                     </Button>
-                    {canEdit(b.status) && (
-                      <Button size="sm" className="w-full" disabled={startingVisit === b.id} onClick={() => handleStartVisit(b.id)}>
+                    {(canEdit(b.status) || b.serviceVisit?.id) && (
+                      <Button
+                        size="sm"
+                        className="w-full"
+                        disabled={startingVisit === b.id}
+                        onClick={() => handleStartVisit(b.id, b.serviceVisit?.id)}
+                      >
                         <Play className="h-3.5 w-3.5" />
-                        {startingVisit === b.id ? 'Starting...' : 'Start Visit'}
+                        {startingVisit === b.id
+                          ? 'Opening…'
+                          : b.serviceVisit?.id
+                            ? 'Vehicle receiving'
+                            : 'Start visit → receiving'}
                       </Button>
                     )}
                   </div>
@@ -734,10 +766,19 @@ export function BookingsPage() {
                               <Printer className="h-3.5 w-3.5" />
                               {loadingPrint === b.id ? '...' : 'Slip'}
                             </Button>
-                            {canEdit(b.status) && (
-                              <Button variant="ghost" size="sm" disabled={startingVisit === b.id} onClick={() => handleStartVisit(b.id)}>
+                            {(canEdit(b.status) || b.serviceVisit?.id) && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                disabled={startingVisit === b.id}
+                                onClick={() => handleStartVisit(b.id, b.serviceVisit?.id)}
+                              >
                                 <Play className="h-3.5 w-3.5" />
-                                {startingVisit === b.id ? 'Starting...' : 'Start Visit'}
+                                {startingVisit === b.id
+                                  ? '…'
+                                  : b.serviceVisit?.id
+                                    ? 'Receiving'
+                                    : 'Start visit'}
                               </Button>
                             )}
                           </div>

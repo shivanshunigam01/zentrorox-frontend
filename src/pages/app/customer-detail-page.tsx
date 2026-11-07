@@ -27,8 +27,21 @@ export function CustomerDetailPage() {
 
       <Card>
         <CardHeader>
-          <div className="flex items-center justify-between">
-            <CardTitle>{customer.name}</CardTitle>
+          <div className="flex flex-col sm:flex-row sm:items-center gap-4 justify-between">
+            <div className="flex items-center gap-4">
+              {customer.imageUrl ? (
+                <img
+                  src={customer.imageUrl}
+                  alt={customer.name}
+                  className="h-16 w-16 rounded-full object-cover ring-2 ring-brand-yellow/30"
+                />
+              ) : (
+                <div className="h-16 w-16 rounded-full bg-brand-grey flex items-center justify-center text-brand-muted text-xs">
+                  No photo
+                </div>
+              )}
+              <CardTitle>{customer.name}</CardTitle>
+            </div>
             <Badge>{customer.type}</Badge>
           </div>
         </CardHeader>

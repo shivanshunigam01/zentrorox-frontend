@@ -6,7 +6,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { PaginationBar, clientPagination } from '@/components/ui/pagination-bar'
 import { authStorage } from '@/lib/auth-storage'
-import { receivingApi } from '@/lib/api'
+import { bookingsApi, receivingApi } from '@/lib/api'
+import { appToast } from '@/lib/app-toast'
 
 type QueueRow = {
   id: string
@@ -28,6 +29,7 @@ export function VehicleReceivingWorkspacePage() {
   const [expectedPage, setExpectedPage] = useState(1)
   const [visitsPage, setVisitsPage] = useState(1)
   const [limit, setLimit] = useState(8)
+  const [startingBookingId, setStartingBookingId] = useState<string | null>(null)
 
   const load = async () => {
     if (!token) return
@@ -45,6 +47,22 @@ export function VehicleReceivingWorkspacePage() {
 
   const openVisit = (visitId: string) => {
     navigate(`/app/service-visits/${visitId}/receiving`)
+  }
+
+  const startVisitFromBooking = async (bookingId: string) => {
+    if (!token || !branchId) return
+    setStartingBookingId(bookingId)
+    try {
+      const visit = await appToast.run('Creating service visit…', () =>
+        bookingsApi.createVisitFromBooking(token, bookingId, branchId),
+      )
+      openVisit(visit.id)
+      await load()
+    } catch (e) {
+      appToast.error(e instanceof Error ? e.message : 'Could not start visit from booking')
+    } finally {
+      setStartingBookingId(null)
+    }
   }
 
   const expectedPaginated = clientPagination(expected, expectedPage, limit)
@@ -86,6 +104,7 @@ export function VehicleReceivingWorkspacePage() {
                         <th className="p-3">Customer</th>
                         <th className="p-3">Vehicle</th>
                         <th className="p-3">Status</th>
+                        <th className="p-3 text-right">Actions</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -95,6 +114,16 @@ export function VehicleReceivingWorkspacePage() {
                           <td className="p-3">{row.customer?.name}</td>
                           <td className="p-3">{row.vehicle?.registrationNo}</td>
                           <td className="p-3 text-muted-foreground">{row.status}</td>
+                          <td className="p-3 text-right">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              disabled={startingBookingId === row.id}
+                              onClick={() => startVisitFromBooking(row.id)}
+                            >
+                              {startingBookingId === row.id ? 'Starting…' : 'Start visit'}
+                            </Button>
+                          </td>
                         </tr>
                       ))}
                     </tbody>

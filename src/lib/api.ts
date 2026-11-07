@@ -298,6 +298,8 @@ export interface CustomerItem {
   email?: string
   type: string
   city?: string
+  imageUrl?: string
+  imagePublicId?: string
   vehicles: number
   lastVisit?: string
 }
@@ -328,6 +330,7 @@ export interface BookingItem {
   pickupRequired?: boolean
   customer?: { name: string; mobile?: string }
   vehicle?: { registrationNo: string; make: string; model: string }
+  serviceVisit?: { id: string; visitNumber?: string; currentStage?: string } | null
 }
 
 export interface BookingDetail {
@@ -471,6 +474,9 @@ export const customersApi = {
 
   create: (token: string, body: Record<string, unknown>, branchId?: string) =>
     api<CustomerItem>('/customers', { method: 'POST', token, branchId, body: JSON.stringify(body) }),
+
+  update: (token: string, id: string, body: Record<string, unknown>, branchId?: string) =>
+    api<CustomerItem>(`/customers/${id}`, { method: 'PATCH', token, branchId, body: JSON.stringify(body) }),
 }
 
 export const vehiclesApi = {
@@ -1179,6 +1185,44 @@ export const branchesApi = {
 export const usersApi = {
   list: (token: string, branchId?: string) => api<UserItem[]>('/users', { token, branchId }),
   technicians: (token: string, branchId?: string) => api<UserItem[]>('/users/technicians', { token, branchId }),
+}
+
+export const auditLogsApi = {
+  filters: (token: string, branchId?: string) =>
+    api<{ modules: string[]; actions: string[] }>('/audit-logs/filters', { token, branchId }),
+
+  list: (
+    token: string,
+    params: {
+      from?: string
+      to?: string
+      module?: string
+      action?: string
+      userId?: string
+      recordId?: string
+      page?: number
+      limit?: number
+    },
+    branchId?: string,
+  ) => {
+    const qs = new URLSearchParams()
+    if (params.from) qs.set('from', params.from)
+    if (params.to) qs.set('to', params.to)
+    if (params.module) qs.set('module', params.module)
+    if (params.action) qs.set('action', params.action)
+    if (params.userId) qs.set('userId', params.userId)
+    if (params.recordId) qs.set('recordId', params.recordId)
+    if (params.page) qs.set('page', String(params.page))
+    if (params.limit) qs.set('limit', String(params.limit))
+    const q = qs.toString()
+    return api<{
+      items: unknown[]
+      page: number
+      limit: number
+      total: number
+      totalPages: number
+    }>(`/audit-logs${q ? `?${q}` : ''}`, { token, branchId })
+  },
 }
 
 export const searchApi = {

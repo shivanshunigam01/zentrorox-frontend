@@ -32,6 +32,7 @@ import { EstimateManagementPage } from '@/pages/app/estimate-management-page'
 import { ApprovalManagementPage } from '@/pages/app/approval-management-page'
 import { JobCardManagementPage } from '@/pages/app/job-card-management-page'
 import { BillingDeliveryPage } from '@/pages/app/billing-delivery-page'
+import { ActivityLogPage } from '@/pages/app/activity-log-page'
 
 function LegacyInspectionCaseRedirect() {
   const { caseId } = useParams<{ caseId: string }>()
@@ -135,6 +136,7 @@ export function AppRoutes() {
         <Route path="reports" element={<ReportsPage />} />
         <Route path="masters" element={<MastersPage />} />
         <Route path="administration" element={<AdminLivePage />} />
+        <Route path="administration/activity-log" element={<ActivityLogPage />} />
         <Route path="settings" element={<SettingsLivePage />} />
       </Route>
 

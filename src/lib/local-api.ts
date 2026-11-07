@@ -171,6 +171,8 @@ export async function localApiRequest<T>(endpoint: string, options: LocalRequest
       email: body.email ? String(body.email) : undefined,
       type: String(body.type ?? 'Individual'),
       city: body.city ? String(body.city) : undefined,
+      imageUrl: body.imageUrl ? String(body.imageUrl) : undefined,
+      imagePublicId: body.imagePublicId ? String(body.imagePublicId) : undefined,
       vehicles: 0,
     }
     mutateDatabase((d) => {

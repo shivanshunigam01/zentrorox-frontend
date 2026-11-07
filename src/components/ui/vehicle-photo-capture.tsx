@@ -11,8 +11,12 @@ interface VehiclePhotoCaptureProps {
   onCleared?: () => void
   entityType?: string
   entityId?: string
+  folder?: string
+  /** Must match backend IMAGE_CATEGORIES (e.g. GATE_IN, RECEIVING). Not the Cloudinary folder name. */
+  imageCategory?: string
   className?: string
   label?: string
+  imageAlt?: string
 }
 
 export function VehiclePhotoCapture({
@@ -21,8 +25,11 @@ export function VehiclePhotoCapture({
   onCleared,
   entityType = 'vehicle',
   entityId,
+  folder = 'vehicles',
+  imageCategory,
   className,
   label = 'Vehicle Photo',
+  imageAlt = 'Vehicle',
 }: VehiclePhotoCaptureProps) {
   const cameraRef = useRef<HTMLInputElement>(null)
   const fileRef = useRef<HTMLInputElement>(null)
@@ -43,7 +50,8 @@ export function VehiclePhotoCapture({
       const result = await uploadImage(token, file, {
         entityType,
         entityId,
-        folder: 'vehicles',
+        folder,
+        ...(imageCategory ? { imageCategory } : {}),
       })
       onUploaded({ url: result.url, publicId: result.publicId })
     } catch (e) {
@@ -63,7 +71,7 @@ export function VehiclePhotoCapture({
           <div className="flex flex-col sm:flex-row gap-4 items-start">
             <img
               src={imageUrl}
-              alt="Vehicle"
+              alt={imageAlt}
               className="h-36 w-full sm:w-48 rounded-lg object-cover border border-brand-border"
             />
             <div className="flex flex-wrap gap-2 w-full sm:w-auto">
